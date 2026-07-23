@@ -17,7 +17,8 @@ export const MYCOIN_ABI = [
   "function transfer(address to, uint256 value) returns (bool)",
   "function approve(address spender, uint256 value) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
-  "function mint(address to, uint256 amount) returns (bool)"
+  "function mint(address to, uint256 amount) returns (bool)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
 
 export const MOCKUSDC_ABI = [
@@ -28,7 +29,8 @@ export const MOCKUSDC_ABI = [
   "function transfer(address to, uint256 value) returns (bool)",
   "function approve(address spender, uint256 value) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
-  "function mint(address to, uint256 amount) returns (bool)"
+  "function mint(address to, uint256 amount) returns (bool)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
 
 export const FAUCET_ABI = [
