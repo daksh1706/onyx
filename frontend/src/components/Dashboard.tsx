@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, ShieldCheck, HelpCircle } from "lucide-react";
+import { Clock, Activity, Zap, ShieldCheck, HelpCircle, AlertTriangle } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap") => void;
@@ -540,6 +540,52 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </div>
             
             <div style={{ marginTop: "16px" }}>
+              {parseFloat(ethBalance) < 0.0005 && (
+                <div style={{
+                  background: "rgba(255, 166, 0, 0.08)",
+                  border: "1px solid rgba(255, 166, 0, 0.2)",
+                  color: "#decba4",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  fontSize: "11px",
+                  lineHeight: "1.4",
+                  marginBottom: "12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700 }}>
+                    <AlertTriangle size={14} style={{ color: "orange" }} />
+                    <span>0 ETH Gas Balance</span>
+                  </div>
+                  <span>
+                    You need Sepolia ETH in your wallet to cover network transaction fees. Get test ETH here:
+                  </span>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                    <a
+                      href="https://www.alchemy.com/faucets/ethereum-sepolia"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: 600 }}
+                    >
+                      Alchemy Faucet
+                    </a>
+                    <a
+                      href="https://faucet.quicknode.com/drip"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: 600 }}
+                    >
+                      QuickNode Faucet
+                    </a>
+                  </div>
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    Or send gas from your MetaMask (Account 1) to this address: <br/>
+                    <strong className="mono-text" style={{ wordBreak: "break-all", color: "var(--text-main)", fontSize: "9px" }}>{address}</strong>
+                  </span>
+                </div>
+              )}
+
               {cooldownLeft > 0 ? (
                 <div className="mono-text" style={{
                   fontSize: "12px",
@@ -561,7 +607,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <button
                   className="btn btn-primary"
                   onClick={handleClaimFaucet}
-                  disabled={faucetLoading}
+                  disabled={faucetLoading || parseFloat(ethBalance) < 0.0005}
                   style={{ width: "100%", padding: "10px 0", borderRadius: "10px", fontWeight: 700 }}
                 >
                   {faucetLoading ? "Dispensing..." : "Claim Faucet Funds"}
