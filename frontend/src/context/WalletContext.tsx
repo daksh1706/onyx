@@ -468,6 +468,33 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if ((window as any).ethereum) {
       try {
         disconnectWallet();
+        
+        // 1. Request to switch MetaMask to Sepolia Testnet (Chain ID 11155111 -> Hex: 0xaa36a7)
+        try {
+          await (window as any).ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0xaa36a7" }],
+          });
+        } catch (switchError: any) {
+          // If the network is not added to MetaMask, add it automatically
+          if (switchError.code === 4902) {
+            await (window as any).ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: "0xaa36a7",
+                  chainName: "Sepolia Test Network",
+                  nativeCurrency: { name: "Sepolia ETH", symbol: "SepoliaETH", decimals: 18 },
+                  rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+                  blockExplorerUrls: ["https://sepolia.etherscan.io"],
+                },
+              ],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+
         const web3Provider = new ethers.BrowserProvider((window as any).ethereum);
         const accounts = await web3Provider.send("eth_requestAccounts", []);
         
