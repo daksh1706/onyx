@@ -38,7 +38,8 @@ export const SendReceive: React.FC = () => {
 
   // Live gas estimation helper
   const estimateGasFee = useCallback(async () => {
-    if (!provider || !address || !isAddress(recipient) || !amount || parseFloat(amount) <= 0) {
+    const trimmedRecipient = recipient.trim();
+    if (!provider || !address || !isAddress(trimmedRecipient) || !amount || parseFloat(amount) <= 0) {
       setGasEstimate("N/A");
       return;
     }
@@ -51,11 +52,15 @@ export const SendReceive: React.FC = () => {
 
       if (token === "MYC" && contractConfigured) {
         const mycContract = new Contract(CONTRACT_ADDRESSES.MyCoin, MYCOIN_ABI, provider);
-        gasLimit = await mycContract.transfer.estimateGas(recipient, parseEther(amount))
+        gasLimit = await mycContract.transfer.estimateGas(trimmedRecipient, parseEther(amount))
+          .catch(() => 65000n); // fallback
+      } else if (token === "ONYX" && contractConfigured) {
+        const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, MYCOIN_ABI, provider);
+        gasLimit = await onyxContract.transfer.estimateGas(trimmedRecipient, parseEther(amount))
           .catch(() => 65000n); // fallback
       } else if (token === "USDC" && contractConfigured) {
         const usdcContract = new Contract(CONTRACT_ADDRESSES.MockUSDC, MOCKUSDC_ABI, provider);
-        gasLimit = await usdcContract.transfer.estimateGas(recipient, parseUnits(amount, 6))
+        gasLimit = await usdcContract.transfer.estimateGas(trimmedRecipient, parseUnits(amount, 6))
           .catch(() => 65000n); // fallback
       }
 
@@ -80,8 +85,10 @@ export const SendReceive: React.FC = () => {
     e.preventDefault();
     setTxMessage(null);
 
+    const trimmedRecipient = recipient.trim();
+
     // 1. Validation
-    if (!isAddress(recipient)) {
+    if (!isAddress(trimmedRecipient)) {
       setTxMessage({ text: "Invalid Ethereum address format.", error: true });
       return;
     }
@@ -101,7 +108,7 @@ export const SendReceive: React.FC = () => {
     setTxLoading(true);
     try {
       setTxMessage({ text: "Initiating signature request...", error: false });
-      const tx = await sendTokens(recipient, amount, token);
+      const tx = await sendTokens(trimmedRecipient, amount, token);
       
       setTxMessage({
         text: "Transaction submitted! Waiting for block confirmation...",
