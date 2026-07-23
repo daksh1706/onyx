@@ -1,11 +1,12 @@
 // Contract configurations for the MyCoin and SimpleSwap frontend
 
 export const CONTRACT_ADDRESSES = {
-  MyCoin: import.meta.env.VITE_MYCOIN_ADDRESS || "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  MockUSDC: import.meta.env.VITE_USDC_ADDRESS || "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-  CustomToken: import.meta.env.VITE_ONYX_ADDRESS || "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  Faucet: import.meta.env.VITE_FAUCET_ADDRESS || "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-  SimpleSwap: import.meta.env.VITE_SWAP_ADDRESS || "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  MyCoin: import.meta.env.VITE_MYCOIN_ADDRESS || "0x1d8686F4915beD4b621e568199f2E37A2653b031",
+  MockUSDC: import.meta.env.VITE_USDC_ADDRESS || "0x8a1468102B2ED21eD1f91C38F87009519703967d",
+  CustomToken: import.meta.env.VITE_ONYX_ADDRESS || "0xAC5139b73cE32D3D24a4Dad10bAF9a1D3d11FDe2",
+  Faucet: import.meta.env.VITE_FAUCET_ADDRESS || "0x903dbDA83a87d6Bb7EAcc9Be88c133e2Ae2Ccbc3",
+  SimpleSwap: import.meta.env.VITE_SWAP_ADDRESS || "0xCCD633f8237AadBBa54846A73204448A8d6a726b",
+  OnyxSwap: import.meta.env.VITE_ONYX_SWAP_ADDRESS || "0x9587872bB3dD4993D4C3AD4279a2E218Dcb3C863",
 };
 
 export const MYCOIN_ABI = [

@@ -36,12 +36,19 @@ async function main() {
   const faucetAddress = await faucet.getAddress();
   console.log("Faucet deployed to:", faucetAddress);
 
-  // 4. Deploy SimpleSwap AMM
+  // 4. Deploy SimpleSwap AMM (MYC/USDC)
   const SimpleSwapFactory = await ethers.getContractFactory("SimpleSwap");
   const simpleSwap = await SimpleSwapFactory.deploy(myCoinAddress, mockUsdcAddress);
   await simpleSwap.waitForDeployment();
   const simpleSwapAddress = await simpleSwap.getAddress();
   console.log("SimpleSwap AMM deployed to:", simpleSwapAddress);
+
+  // 4b. Deploy OnyxSwap AMM (ONYX/USDC)
+  console.log("\nDeploying OnyxSwap AMM Pool...");
+  const onyxSwap = await SimpleSwapFactory.deploy(customTokenAddress, mockUsdcAddress);
+  await onyxSwap.waitForDeployment();
+  const onyxSwapAddress = await onyxSwap.getAddress();
+  console.log("OnyxSwap AMM deployed to:", onyxSwapAddress);
 
   // 5. Setup initial funds for Faucet & Pool
   console.log("\nFunding Faucet contract...");
@@ -55,7 +62,7 @@ async function main() {
   await (await customToken.transfer(faucetAddress, FAUCET_FUND_CUSTOM)).wait();
   console.log("Faucet funded successfully.");
 
-  console.log("\nAdding initial liquidity to SimpleSwap...");
+  console.log("\nAdding initial liquidity to SimpleSwap (MYC/USDC)...");
   const LP_FUND_MYC = ethers.parseEther("100000");   // 100,000 MYC
   const LP_FUND_USDC = ethers.parseUnits("50000", 6); // 50,000 USDC (Initial Price Ratio: 2 MYC = 1 USDC)
 
@@ -70,7 +77,20 @@ async function main() {
   // Add liquidity
   const addLiqTx = await simpleSwap.addLiquidity(LP_FUND_MYC, LP_FUND_USDC);
   await addLiqTx.wait();
-  console.log("AMM Pool Liquidity added successfully!");
+  console.log("SimpleSwap Pool Liquidity added successfully!");
+
+  console.log("\nAdding initial liquidity to OnyxSwap (ONYX/USDC)...");
+  const LP_FUND_ONYX = ethers.parseEther("100000");   // 100,000 ONYX
+  const LP_FUND_USDC_ONYX = ethers.parseUnits("50000", 6); // 50,000 USDC (Initial Price Ratio: 2 ONYX = 1 USDC)
+
+  // Approve OnyxSwap to transfer tokens
+  await (await customToken.approve(onyxSwapAddress, LP_FUND_ONYX)).wait();
+  await (await mockUsdc.approve(onyxSwapAddress, LP_FUND_USDC_ONYX)).wait();
+
+  // Add liquidity
+  const addOnyxLiqTx = await onyxSwap.addLiquidity(LP_FUND_ONYX, LP_FUND_USDC_ONYX);
+  await addOnyxLiqTx.wait();
+  console.log("OnyxSwap Pool Liquidity added successfully!");
 
   // 6. Verify on Etherscan (only on live networks)
   if (network.name !== "hardhat" && network.name !== "localhost") {
@@ -103,7 +123,7 @@ async function main() {
     try {
       await run("verify:verify", {
         address: faucetAddress,
-        constructorArguments: [myCoinAddress, mockUsdcAddress, deployer.address],
+        constructorArguments: [myCoinAddress, mockUsdcAddress, customTokenAddress, deployer.address],
       });
     } catch (err) {
       console.log("Faucet verification error:", err);
@@ -118,6 +138,16 @@ async function main() {
     } catch (err) {
       console.log("SimpleSwap verification error:", err);
     }
+
+    console.log("Verifying OnyxSwap...");
+    try {
+      await run("verify:verify", {
+        address: onyxSwapAddress,
+        constructorArguments: [customTokenAddress, mockUsdcAddress],
+      });
+    } catch (err) {
+      console.log("OnyxSwap verification error:", err);
+    }
   }
 
   console.log("\nDeployment and setup finalized!");
@@ -127,6 +157,7 @@ async function main() {
   console.log("Onyx (ONYX):    ", customTokenAddress);
   console.log("Faucet:         ", faucetAddress);
   console.log("SimpleSwap LP:  ", simpleSwapAddress);
+  console.log("OnyxSwap LP:    ", onyxSwapAddress);
   console.log("-----------------------------------------");
 }
 

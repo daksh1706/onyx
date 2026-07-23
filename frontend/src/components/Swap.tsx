@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
-import { ethers, Contract, parseEther, parseUnits, formatEther, formatUnits } from "ethers";
+import { ethers, Contract, parseUnits, formatUnits } from "ethers";
 import { CONTRACT_ADDRESSES, SIMPLESWAP_ABI, MYCOIN_ABI, MOCKUSDC_ABI } from "../constants/contracts";
 import { ArrowDown, AlertTriangle, Settings, CheckCircle2 } from "lucide-react";
 
@@ -9,15 +9,18 @@ export const Swap: React.FC = () => {
     address,
     mycBalance,
     usdcBalance,
+    onyxBalance,
     provider,
     signer,
     contractConfigured,
     swapTokens,
     reserves,
+    onyxReserves,
     refreshState,
   } = useWallet();
 
-  const [fromToken, setFromToken] = useState<"MYC" | "USDC">("MYC");
+  const [fromToken, setFromToken] = useState<"MYC" | "USDC" | "ONYX">("MYC");
+  const [toToken, setToToken] = useState<"MYC" | "USDC" | "ONYX">("USDC");
   const [amountIn, setAmountIn] = useState<string>("");
   const [amountOut, setAmountOut] = useState<string>("");
   const [slippage, setSlippage] = useState<number>(0.5); // 0.5% default
@@ -33,18 +36,41 @@ export const Swap: React.FC = () => {
   const [actionStep, setActionStep] = useState<"none" | "approving" | "swapping">("none");
   const [swapMessage, setSwapMessage] = useState<{ text: string; error: boolean; hash?: string } | null>(null);
 
-  const toToken = fromToken === "MYC" ? "USDC" : "MYC";
+  // Check if direct pool exists
+  const isValidPair =
+    (fromToken === "MYC" && toToken === "USDC") ||
+    (fromToken === "USDC" && toToken === "MYC") ||
+    (fromToken === "ONYX" && toToken === "USDC") ||
+    (fromToken === "USDC" && toToken === "ONYX");
+
+  // Get active reserves based on selected tokens
+  const getActiveReserves = (): { reserveIn: number; reserveOut: number } | null => {
+    if (fromToken === "MYC" && toToken === "USDC") {
+      return reserves ? { reserveIn: parseFloat(reserves.reserveA), reserveOut: parseFloat(reserves.reserveB) } : null;
+    }
+    if (fromToken === "USDC" && toToken === "MYC") {
+      return reserves ? { reserveIn: parseFloat(reserves.reserveB), reserveOut: parseFloat(reserves.reserveA) } : null;
+    }
+    if (fromToken === "ONYX" && toToken === "USDC") {
+      return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveA), reserveOut: parseFloat(onyxReserves.reserveB) } : null;
+    }
+    if (fromToken === "USDC" && toToken === "ONYX") {
+      return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveB), reserveOut: parseFloat(onyxReserves.reserveA) } : null;
+    }
+    return null;
+  };
+
+  const activeReserves = getActiveReserves();
 
   // Calculate price impact
   const calculatePriceImpact = (): { percent: number; level: "low" | "medium" | "high" } => {
-    if (!reserves || !amountIn || !amountOut || parseFloat(amountIn) <= 0 || parseFloat(amountOut) <= 0) {
+    if (!activeReserves || !amountIn || !amountOut || parseFloat(amountIn) <= 0 || parseFloat(amountOut) <= 0) {
       return { percent: 0, level: "low" };
     }
 
     const inVal = parseFloat(amountIn);
     const outVal = parseFloat(amountOut);
-    const reserveIn = fromToken === "MYC" ? parseFloat(reserves.reserveA) : parseFloat(reserves.reserveB);
-    const reserveOut = fromToken === "MYC" ? parseFloat(reserves.reserveB) : parseFloat(reserves.reserveA);
+    const { reserveIn, reserveOut } = activeReserves;
 
     if (reserveIn === 0 || reserveOut === 0) return { percent: 0, level: "low" };
 
@@ -70,7 +96,9 @@ export const Swap: React.FC = () => {
 
   // Switch from/to tokens
   const handleSwitchTokens = () => {
+    const temp = fromToken;
     setFromToken(toToken);
+    setToToken(temp);
     setAmountIn(amountOut);
     setAmountOut(amountIn);
     setSwapMessage(null);
@@ -78,20 +106,36 @@ export const Swap: React.FC = () => {
 
   // Get Live Quote
   const getLiveQuote = useCallback(async () => {
-    if (!provider || !contractConfigured || !amountIn || parseFloat(amountIn) <= 0) {
+    if (!provider || !contractConfigured || !amountIn || parseFloat(amountIn) <= 0 || !isValidPair) {
       setAmountOut("");
       return;
     }
 
     setQuoteLoading(true);
     try {
-      const swapContract = new Contract(CONTRACT_ADDRESSES.SimpleSwap, SIMPLESWAP_ABI, provider);
-      const isMyc = fromToken === "MYC";
-      const tokenInAddress = isMyc ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.MockUSDC;
-      const rawIn = isMyc ? parseEther(amountIn) : parseUnits(amountIn, 6);
+      const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
+      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContract = new Contract(swapContractAddress, SIMPLESWAP_ABI, provider);
 
+      let tokenInAddress = "";
+      let decimalsIn = 18;
+
+      if (fromToken === "MYC") {
+        tokenInAddress = CONTRACT_ADDRESSES.MyCoin;
+        decimalsIn = 18;
+      } else if (fromToken === "ONYX") {
+        tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
+        decimalsIn = 18;
+      } else {
+        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
+        decimalsIn = 6;
+      }
+
+      const decimalsOut = toToken === "USDC" ? 6 : 18;
+
+      const rawIn = parseUnits(amountIn, decimalsIn);
       const rawOut = await swapContract.getAmountOut(tokenInAddress, rawIn);
-      const formattedOut = isMyc ? formatUnits(rawOut, 6) : formatEther(rawOut);
+      const formattedOut = formatUnits(rawOut, decimalsOut);
 
       setAmountOut(formattedOut);
     } catch (err) {
@@ -100,33 +144,50 @@ export const Swap: React.FC = () => {
     } finally {
       setQuoteLoading(false);
     }
-  }, [fromToken, amountIn, provider, contractConfigured]);
+  }, [fromToken, toToken, amountIn, provider, contractConfigured, isValidPair]);
 
   // Trigger quote refresh
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       getLiveQuote();
-    }, 400);
+    }, 450);
 
     return () => clearTimeout(delayDebounce);
-  }, [amountIn, fromToken, getLiveQuote]);
+  }, [amountIn, fromToken, toToken, getLiveQuote]);
 
   // Check ERC20 Allowance
   const checkAllowance = useCallback(async () => {
-    if (!address || !provider || !contractConfigured || !amountIn || parseFloat(amountIn) <= 0) {
+    if (!address || !provider || !contractConfigured || !amountIn || parseFloat(amountIn) <= 0 || !isValidPair) {
       setAllowanceNeeded(false);
       return;
     }
 
     setCheckingAllowance(true);
     try {
-      const isMyc = fromToken === "MYC";
-      const tokenInAddress = isMyc ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.MockUSDC;
-      const tokenABI = isMyc ? MYCOIN_ABI : MOCKUSDC_ABI;
-      const tokenContract = new Contract(tokenInAddress, tokenABI, provider);
+      const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
+      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
 
-      const allowance = await tokenContract.allowance(address, CONTRACT_ADDRESSES.SimpleSwap);
-      const rawIn = isMyc ? parseEther(amountIn) : parseUnits(amountIn, 6);
+      let tokenInAddress = "";
+      let tokenABI: any = MYCOIN_ABI;
+      let decimalsIn = 18;
+
+      if (fromToken === "MYC") {
+        tokenInAddress = CONTRACT_ADDRESSES.MyCoin;
+        tokenABI = MYCOIN_ABI;
+        decimalsIn = 18;
+      } else if (fromToken === "ONYX") {
+        tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
+        tokenABI = MYCOIN_ABI;
+        decimalsIn = 18;
+      } else {
+        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
+        tokenABI = MOCKUSDC_ABI;
+        decimalsIn = 6;
+      }
+
+      const tokenContract = new Contract(tokenInAddress, tokenABI, provider);
+      const allowance = await tokenContract.allowance(address, swapContractAddress);
+      const rawIn = parseUnits(amountIn, decimalsIn);
 
       setAllowanceNeeded(allowance < rawIn);
     } catch (err) {
@@ -134,31 +195,44 @@ export const Swap: React.FC = () => {
     } finally {
       setCheckingAllowance(false);
     }
-  }, [address, fromToken, amountIn, provider, contractConfigured]);
+  }, [address, fromToken, toToken, amountIn, provider, contractConfigured, isValidPair]);
 
   useEffect(() => {
     checkAllowance();
-  }, [amountIn, fromToken, checkAllowance]);
+  }, [amountIn, fromToken, toToken, checkAllowance]);
 
   // Execute Swap or Approval
   const handleSwapAction = async () => {
-    if (!signer || !amountIn || !amountOut) return;
+    if (!signer || !amountIn || !amountOut || !isValidPair) return;
 
     setActionLoading(true);
     setSwapMessage(null);
 
-    const isMyc = fromToken === "MYC";
-    const tokenInAddress = isMyc ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.MockUSDC;
-
     try {
+      const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
+      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+
+      let tokenInAddress = "";
+      let tokenABI: any = MYCOIN_ABI;
+
+      if (fromToken === "MYC") {
+        tokenInAddress = CONTRACT_ADDRESSES.MyCoin;
+        tokenABI = MYCOIN_ABI;
+      } else if (fromToken === "ONYX") {
+        tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
+        tokenABI = MYCOIN_ABI;
+      } else {
+        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
+        tokenABI = MOCKUSDC_ABI;
+      }
+
       // 1. Handle ERC20 Approval if needed
       if (allowanceNeeded) {
         setActionStep("approving");
-        setSwapMessage({ text: "Requesting token allowance approval...", error: false });
+        setSwapMessage({ text: `Requesting ${fromToken} allowance approval...`, error: false });
         
-        const tokenABI = isMyc ? MYCOIN_ABI : MOCKUSDC_ABI;
         const tokenContract = new Contract(tokenInAddress, tokenABI, signer);
-        const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.SimpleSwap, ethers.MaxUint256);
+        const approveTx = await tokenContract.approve(swapContractAddress, ethers.MaxUint256);
         
         setSwapMessage({ text: "Approving token allowance on-chain...", error: false });
         await approveTx.wait();
@@ -171,12 +245,14 @@ export const Swap: React.FC = () => {
       setActionStep("swapping");
       setSwapMessage({ text: "Requesting swap signature...", error: false });
 
+      const decimalsOut = toToken === "USDC" ? 6 : 18;
+
       // Calculate minAmountOut based on slippage setting
       const outVal = parseFloat(amountOut);
       const minOutVal = outVal * (1 - slippage / 100);
-      const minAmountOutStr = minOutVal.toFixed(isMyc ? 6 : 18); // USDC has 6, MYC has 18
+      const minAmountOutStr = minOutVal.toFixed(decimalsOut);
 
-      const tx = await swapTokens(fromToken, amountIn, minAmountOutStr);
+      const tx = await swapTokens(fromToken, toToken, amountIn, minAmountOutStr);
       setSwapMessage({ text: "Transaction submitted! Confirming on-chain...", error: false, hash: tx.hash });
       
       await tx.wait();
@@ -206,14 +282,19 @@ export const Swap: React.FC = () => {
   };
 
   const getFromBalance = () => {
-    return fromToken === "MYC" ? mycBalance : usdcBalance;
+    if (fromToken === "MYC") return mycBalance;
+    if (fromToken === "USDC") return usdcBalance;
+    return onyxBalance;
   };
 
   const getToBalance = () => {
-    return fromToken === "MYC" ? usdcBalance : mycBalance;
+    if (toToken === "MYC") return mycBalance;
+    if (toToken === "USDC") return usdcBalance;
+    return onyxBalance;
   };
 
   const isButtonDisabled = () => {
+    if (!isValidPair) return true;
     if (actionLoading || checkingAllowance || quoteLoading) return true;
     if (!amountIn || parseFloat(amountIn) <= 0) return true;
     if (parseFloat(amountIn) > parseFloat(getFromBalance())) return true;
@@ -221,6 +302,7 @@ export const Swap: React.FC = () => {
   };
 
   const getButtonText = () => {
+    if (!isValidPair) return "Swap Route Not Supported";
     if (actionLoading) {
       if (actionStep === "approving") return "Approving Token Allowance...";
       if (actionStep === "swapping") return "Executing Swap...";
@@ -312,32 +394,47 @@ export const Swap: React.FC = () => {
               placeholder="0.0"
               value={amountIn}
               onChange={(e) => setAmountIn(e.target.value)}
+              disabled={actionLoading}
               style={{
                 background: "none",
                 border: "none",
                 fontSize: "24px",
                 color: "var(--text-main)",
                 outline: "none",
-                width: "60%"
+                width: "55%"
               }}
             />
-            <span style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--border-glass)",
-              borderRadius: "12px",
-              padding: "6px 12px",
-              color: "var(--text-main)",
-              fontWeight: 600,
-              fontSize: "14px"
-            }}>
-              {fromToken}
-            </span>
+            <select
+              value={fromToken}
+              onChange={(e) => {
+                const selected = e.target.value as "MYC" | "USDC" | "ONYX";
+                setFromToken(selected);
+                setSwapMessage(null);
+              }}
+              disabled={actionLoading}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-glass)",
+                borderRadius: "12px",
+                padding: "8px 12px",
+                color: "var(--text-main)",
+                fontWeight: 600,
+                fontSize: "14px",
+                outline: "none",
+                cursor: "pointer"
+              }}
+            >
+              <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
+              <option value="USDC" style={{ background: "var(--bg-dark)" }}>USDC</option>
+              <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
+            </select>
           </div>
         </div>
 
         {/* Switch Button */}
         <button
           onClick={handleSwitchTokens}
+          disabled={actionLoading}
           style={{
             position: "absolute",
             left: "50%",
@@ -388,26 +485,39 @@ export const Swap: React.FC = () => {
                 fontSize: "24px",
                 color: "var(--text-main)",
                 outline: "none",
-                width: "60%"
+                width: "55%"
               }}
             />
-            <span style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--border-glass)",
-              borderRadius: "12px",
-              padding: "6px 12px",
-              color: "var(--text-main)",
-              fontWeight: 600,
-              fontSize: "14px"
-            }}>
-              {toToken}
-            </span>
+            <select
+              value={toToken}
+              onChange={(e) => {
+                const selected = e.target.value as "MYC" | "USDC" | "ONYX";
+                setToToken(selected);
+                setSwapMessage(null);
+              }}
+              disabled={actionLoading}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-glass)",
+                borderRadius: "12px",
+                padding: "8px 12px",
+                color: "var(--text-main)",
+                fontWeight: 600,
+                fontSize: "14px",
+                outline: "none",
+                cursor: "pointer"
+              }}
+            >
+              <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
+              <option value="USDC" style={{ background: "var(--bg-dark)" }}>USDC</option>
+              <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
+            </select>
           </div>
         </div>
       </div>
 
       {/* Quote Rate Details */}
-      {amountIn && amountOut && (
+      {amountIn && amountOut && isValidPair && (
         <div style={{
           display: "flex",
           flexDirection: "column",
@@ -437,8 +547,31 @@ export const Swap: React.FC = () => {
         </div>
       )}
 
+      {/* Unsupported Route Warnings */}
+      {!isValidPair && (
+        <div style={{
+          background: "rgba(255, 0, 122, 0.08)",
+          border: "1px solid rgba(255, 0, 122, 0.2)",
+          color: "#ff8da8",
+          padding: "12px 16px",
+          borderRadius: "12px",
+          marginTop: "16px",
+          fontSize: "13px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span>
+            {fromToken === toToken 
+              ? "Cannot swap the same token." 
+              : "Direct swap route not supported. Swap via USDC (e.g. MYC ➔ USDC ➔ ONYX)."}
+          </span>
+        </div>
+      )}
+
       {/* Price Impact Warnings */}
-      {priceImpact.level !== "low" && amountIn && amountOut && (
+      {priceImpact.level !== "low" && amountIn && amountOut && isValidPair && (
         <div style={{
           background: priceImpact.level === "high" ? "rgba(255, 0, 122, 0.08)" : "rgba(255, 166, 0, 0.08)",
           border: priceImpact.level === "high" ? "1px solid rgba(255, 0, 122, 0.2)" : "1px solid rgba(255, 166, 0, 0.2)",
@@ -463,7 +596,7 @@ export const Swap: React.FC = () => {
       <button
         onClick={handleSwapAction}
         disabled={isButtonDisabled()}
-        className={`btn ${allowanceNeeded ? "btn-accent" : "btn-primary"}`}
+        className={`btn ${allowanceNeeded && isValidPair ? "btn-accent" : "btn-primary"}`}
         style={{ width: "100%", marginTop: "20px", height: "48px" }}
       >
         {getButtonText()}

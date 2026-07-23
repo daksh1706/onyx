@@ -32,6 +32,7 @@ interface WalletContextType {
   onyxBalance: string;
   lpBalance: string;
   reserves: { reserveA: string; reserveB: string } | null;
+  onyxReserves: { reserveA: string; reserveB: string } | null;
   transactions: Transaction[];
   loading: boolean;
   rpcUrl: string;
@@ -48,7 +49,7 @@ interface WalletContextType {
   refreshState: () => Promise<void>;
   sendTokens: (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "USDC" | "ONYX") => Promise<ethers.TransactionResponse>;
   claimFaucet: () => Promise<ethers.TransactionResponse>;
-  swapTokens: (tokenInSymbol: "MYC" | "USDC", amountIn: string, minAmountOut: string) => Promise<ethers.TransactionResponse>;
+  swapTokens: (tokenInSymbol: "MYC" | "USDC" | "ONYX", tokenOutSymbol: "MYC" | "USDC" | "ONYX", amountIn: string, minAmountOut: string) => Promise<ethers.TransactionResponse>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -74,6 +75,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [onyxBalance, setOnyxBalance] = useState<string>("0");
   const [lpBalance, setLpBalance] = useState<string>("0");
   const [reserves, setReserves] = useState<{ reserveA: string; reserveB: string } | null>(null);
+  const [onyxReserves, setOnyxReserves] = useState<{ reserveA: string; reserveB: string } | null>(null);
 
   // Tx history
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -84,7 +86,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     CONTRACT_ADDRESSES.MockUSDC &&
     CONTRACT_ADDRESSES.CustomToken &&
     CONTRACT_ADDRESSES.Faucet &&
-    CONTRACT_ADDRESSES.SimpleSwap
+    CONTRACT_ADDRESSES.SimpleSwap &&
+    CONTRACT_ADDRESSES.OnyxSwap
   );
 
   // Check saved wallet on startup
@@ -201,6 +204,17 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           reserveB: formatUnits(resB, 6),
         });
 
+        // 5b. Fetch OnyxSwap reserves
+        if (CONTRACT_ADDRESSES.OnyxSwap) {
+          const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
+          const oResA = await onyxSwapContract.reserveA();
+          const oResB = await onyxSwapContract.reserveB();
+          setOnyxReserves({
+            reserveA: formatEther(oResA),
+            reserveB: formatUnits(oResB, 6),
+          });
+        }
+
         // 6. Fetch Tx History via events
         const currentBlock = await provider.getBlockNumber();
         const startBlock = Math.max(0, currentBlock - 5000); // Last 5000 blocks
@@ -247,6 +261,32 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
             blockNumber: parsedLog.blockNumber,
           });
+        }
+
+        // Swaps on OnyxSwap
+        if (CONTRACT_ADDRESSES.OnyxSwap) {
+          const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
+          const onyxSwapEvents = await onyxSwapContract.queryFilter(
+            onyxSwapContract.filters.Swapped(activeAddress),
+            startBlock,
+            currentBlock
+          );
+
+          for (const log of onyxSwapEvents) {
+            const parsedLog = log as any;
+            const [, tokenIn, amountIn, amountOut] = parsedLog.args;
+            const isOnyx = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.CustomToken.toLowerCase();
+            
+            txList.push({
+              hash: parsedLog.transactionHash,
+              type: "Swap",
+              token: isOnyx ? "ONYX → USDC" : "USDC → ONYX",
+              amount: isOnyx 
+                ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
+                : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
+              blockNumber: parsedLog.blockNumber,
+            });
+          }
         }
 
         // MYC Transfers (Send/Receive)
@@ -562,23 +602,48 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return tx;
   };
 
-  const swapTokens = async (tokenInSymbol: "MYC" | "USDC", amountIn: string, minAmountOut: string) => {
+  const swapTokens = async (
+    tokenInSymbol: "MYC" | "USDC" | "ONYX",
+    tokenOutSymbol: "MYC" | "USDC" | "ONYX",
+    amountIn: string,
+    minAmountOut: string
+  ) => {
     if (!signer) throw new Error("Wallet not connected");
-    const swapContract = new Contract(CONTRACT_ADDRESSES.SimpleSwap, SIMPLESWAP_ABI, signer);
 
-    const isMyc = tokenInSymbol === "MYC";
-    const tokenInAddress = isMyc ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.MockUSDC;
-    const rawAmountIn = isMyc ? parseEther(amountIn) : parseUnits(amountIn, 6);
-    const rawMinAmountOut = isMyc ? parseUnits(minAmountOut, 6) : parseEther(minAmountOut);
+    const isOnyxSwap = tokenInSymbol === "ONYX" || tokenOutSymbol === "ONYX";
+    const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+    const swapContract = new Contract(swapContractAddress, SIMPLESWAP_ABI, signer);
+
+    let tokenInAddress = "";
+    let tokenABI: any = MYCOIN_ABI;
+    let decimalsIn = 18;
+
+    if (tokenInSymbol === "MYC") {
+      tokenInAddress = CONTRACT_ADDRESSES.MyCoin;
+      tokenABI = MYCOIN_ABI;
+      decimalsIn = 18;
+    } else if (tokenInSymbol === "ONYX") {
+      tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
+      tokenABI = MYCOIN_ABI;
+      decimalsIn = 18;
+    } else {
+      tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
+      tokenABI = MOCKUSDC_ABI;
+      decimalsIn = 6;
+    }
+
+    const decimalsOut = tokenOutSymbol === "USDC" ? 6 : 18;
+
+    const rawAmountIn = parseUnits(amountIn, decimalsIn);
+    const rawMinAmountOut = parseUnits(minAmountOut, decimalsOut);
 
     // 1. Ensure allowance
-    const tokenABI = isMyc ? MYCOIN_ABI : MOCKUSDC_ABI;
     const tokenContract = new Contract(tokenInAddress, tokenABI, signer);
-    const allowance = await tokenContract.allowance(address, CONTRACT_ADDRESSES.SimpleSwap);
+    const allowance = await tokenContract.allowance(address, swapContractAddress);
 
     if (allowance < rawAmountIn) {
       console.log("Approving AMM for token swap...");
-      const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.SimpleSwap, ethers.MaxUint256);
+      const approveTx = await tokenContract.approve(swapContractAddress, ethers.MaxUint256);
       await approveTx.wait();
       console.log("Approved!");
     }
@@ -603,6 +668,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         onyxBalance,
         lpBalance,
         reserves,
+        onyxReserves,
         transactions,
         loading,
         rpcUrl: DEFAULT_RPC_URL,
