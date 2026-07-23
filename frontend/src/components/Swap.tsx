@@ -369,6 +369,34 @@ export const Swap: React.FC = () => {
         </div>
       )}
 
+      {/* Active Liquidity Pools Display */}
+      <div style={{
+        background: "rgba(0, 0, 0, 0.15)",
+        border: "1px solid var(--border-glass)",
+        borderRadius: "12px",
+        padding: "12px 16px",
+        marginBottom: "20px",
+        fontSize: "13px"
+      }}>
+        <h4 style={{ fontWeight: 600, marginBottom: "8px", color: "var(--text-muted)", textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.05em" }}>
+          Active AMM Liquidity Pools
+        </h4>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>MYC ➔ USDC Pool Reserves</span>
+            <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
+              {reserves ? `${parseFloat(reserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} MYC / ${parseFloat(reserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} USDC` : "Loading..."}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>ONYX ➔ USDC Pool Reserves</span>
+            <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
+              {onyxReserves ? `${parseFloat(onyxReserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} ONYX / ${parseFloat(onyxReserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} USDC` : "Loading..."}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Swap inputs container */}
       <div style={{ display: "flex", flexDirection: "column", gap: "6px", position: "relative" }}>
         

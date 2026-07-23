@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, ShieldCheck } from "lucide-react";
+import { Clock, Activity, Zap, ShieldCheck, HelpCircle } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap") => void;
@@ -159,6 +159,84 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           </div>
         </div>
       </header>
+
+      {/* Quick Guide Card */}
+      <section className="glass-panel fade-in" style={{
+        padding: "24px",
+        borderRadius: "16px",
+        marginBottom: "32px",
+        border: "1px solid var(--border-glass)",
+        background: "linear-gradient(135deg, rgba(0, 102, 255, 0.04) 0%, rgba(0, 0, 0, 0) 100%)"
+      }}>
+        <h3 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <HelpCircle size={18} style={{ color: "var(--color-primary)" }} />
+          Getting Started & Guide
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{
+                background: "var(--color-primary)",
+                color: "#fff",
+                width: "20px",
+                height: "20px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "11px"
+              }}>1</span>
+              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Claim Faucet Tokens</h4>
+            </div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              Use the <strong>Developer Faucet</strong> card below to instantly claim 100 MYC, 100 USDC, and 100 ONYX test tokens.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{
+                background: "var(--color-primary)",
+                color: "#fff",
+                width: "20px",
+                height: "20px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "11px"
+              }}>2</span>
+              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Import Custom Tokens</h4>
+            </div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              In MetaMask, click <strong>Import Token ➔ Custom Token</strong> and paste the contract addresses (shown in README) to see your balances.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{
+                background: "var(--color-primary)",
+                color: "#fff",
+                width: "20px",
+                height: "20px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "11px"
+              }}>3</span>
+              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Swap on AMM Pool</h4>
+            </div>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              Navigate to the <strong>Swap</strong> tab to trade assets. Supported liquidity pairs are <strong>MYC ➔ USDC</strong> and <strong>ONYX ➔ USDC</strong>.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Bento Grid */}
       <div className="dashboard-grid">
