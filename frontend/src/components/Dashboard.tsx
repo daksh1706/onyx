@@ -563,12 +563,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   </span>
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
                     <a
-                      href="https://www.alchemy.com/faucets/ethereum-sepolia"
+                      href="https://cloud.google.com/application/web3/faucets/ethereum-sepolia"
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: 600 }}
                     >
-                      Alchemy Faucet
+                      Google Faucet
                     </a>
                     <a
                       href="https://faucet.quicknode.com/drip"
