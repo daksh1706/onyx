@@ -235,7 +235,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         for (const log of swapEvents) {
           const parsedLog = log as any;
-          const [,, tokenIn, amountIn, amountOut] = parsedLog.args;
+          const [, tokenIn, amountIn, amountOut] = parsedLog.args;
           const isMyc = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.MyCoin.toLowerCase();
           
           txList.push({

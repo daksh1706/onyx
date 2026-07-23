@@ -161,11 +161,10 @@ export const Dashboard: React.FC<DashboardProps> = () => {
       </header>
 
       {/* Bento Grid */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(12, 1fr)", gap: "24px", display: "grid" }}>
+      <div className="dashboard-grid">
         
         {/* Main Chart Card (col-span-8) */}
-        <section className="glass-panel" style={{
-          gridColumn: "span 8",
+        <section className="glass-panel grid-col-8" style={{
           borderRadius: "16px",
           padding: "24px",
           position: "relative",
@@ -298,8 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
         </section>
 
         {/* Asset Allocation Donut Card (col-span-4) */}
-        <section className="glass-panel" style={{
-          gridColumn: "span 4",
+        <section className="glass-panel grid-col-4" style={{
           borderRadius: "16px",
           padding: "24px",
           display: "flex",
@@ -446,8 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
 
         {/* Sandbox Developer Faucet Card (col-span-4) */}
         {contractConfigured && (
-          <section className="glass-panel" style={{
-            gridColumn: "span 4",
+          <section className="glass-panel grid-col-4" style={{
             borderRadius: "16px",
             padding: "24px",
             display: "flex",
@@ -509,8 +506,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
         )}
 
         {/* Performance Timeline Table (col-span-8) */}
-        <section className="glass-panel" style={{
-          gridColumn: "span 8",
+        <section className="glass-panel grid-col-8" style={{
           borderRadius: "16px",
           overflow: "hidden"
         }}>

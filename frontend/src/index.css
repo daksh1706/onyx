@@ -621,9 +621,17 @@ body {
 /* Dashboard Grid Layout */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 8fr 4fr;
+  grid-template-columns: repeat(12, 1fr);
   gap: 24px;
   align-items: start;
+}
+
+.grid-col-8 {
+  grid-column: span 8;
+}
+
+.grid-col-4 {
+  grid-column: span 4;
 }
 
 .portfolio-hero-card {
@@ -646,5 +654,8 @@ body {
   .dashboard-grid {
     grid-template-columns: 1fr;
     gap: 20px;
+  }
+  .grid-col-8, .grid-col-4 {
+    grid-column: span 12;
   }
 }

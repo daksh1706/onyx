@@ -39,7 +39,8 @@ export const FAUCET_ABI = [
   "function FAUCET_AMOUNT_CUSTOM() view returns (uint256)",
   "function myCoin() view returns (address)",
   "function mockUsdc() view returns (address)",
-  "function customToken() view returns (address)"
+  "function customToken() view returns (address)",
+  "event TokensDispensed(address indexed receiver, uint256 amountMyc, uint256 amountUsdc, uint256 amountCustom)"
 ];
 
 export const SIMPLESWAP_ABI = [
@@ -55,5 +56,6 @@ export const SIMPLESWAP_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
   "function approve(address spender, uint256 value) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)"
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "event Swapped(address indexed swapper, address indexed tokenIn, uint256 amountIn, uint256 amountOut)"
 ];
