@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Share2, Star, Landmark } from "lucide-react";
 export const Markets: React.FC = () => {
   const { reserves, onyxReserves, address } = useWallet();
 
-  const [selectedPair, setSelectedPair] = useState<"MYC" | "ONYX" | "ETH" | "USDC">("MYC");
+  const [selectedPair, setSelectedPair] = useState<"MYC" | "ONYX" | "ETH">("MYC");
   const [timeframe, setTimeframe] = useState<"24h" | "1W" | "1M" | "1Y" | "All">("24h");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -15,15 +15,13 @@ export const Markets: React.FC = () => {
   const rawMycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
   const rawOnyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
   const rawEthPrice = 3500.00;
-  const rawUsdcPrice = 1.00;
 
   const getPriceInInr = (rawPrice: number) => rawPrice * INR_MULTIPLIER;
 
   const currentPriceInr = 
     selectedPair === "MYC" ? getPriceInInr(rawMycPrice) :
     selectedPair === "ONYX" ? getPriceInInr(rawOnyxPrice) :
-    selectedPair === "ETH" ? getPriceInInr(rawEthPrice) :
-    getPriceInInr(rawUsdcPrice);
+    getPriceInInr(rawEthPrice);
 
   // Address-seeded stable parameters
   const addressSeed = address ? parseInt(address.slice(2, 10), 16) : 42;
@@ -40,14 +38,10 @@ export const Markets: React.FC = () => {
       if (timeframe === "24h") baseData = [1.03, 1.01, 1.02, 0.99, 0.98, 1.00];
       else if (timeframe === "1W") baseData = [1.12, 1.08, 1.04, 1.01, 0.97, 1.00];
       else baseData = [1.35, 1.20, 1.10, 1.05, 0.98, 1.00];
-    } else if (selectedPair === "ETH") {
+    } else { // ETH
       if (timeframe === "24h") baseData = [0.99, 1.00, 0.98, 1.01, 1.00];
       else if (timeframe === "1W") baseData = [0.94, 0.96, 0.98, 1.02, 1.00];
       else baseData = [0.85, 0.90, 0.95, 1.00];
-    } else { // USDC stablecoin index
-      if (timeframe === "24h") baseData = [1.001, 0.999, 1.000, 1.002, 1.000, 0.998, 1.000];
-      else if (timeframe === "1W") baseData = [0.999, 1.001, 1.000, 1.002, 1.000];
-      else baseData = [1.000, 1.000, 1.000, 1.000];
     }
 
     return baseData.map((val, idx) => {
@@ -110,7 +104,7 @@ export const Markets: React.FC = () => {
         circSupply,
         maxSupply
       };
-    } else if (selectedPair === "ETH") {
+    } else { // ETH
       const circSupply = 120000000;
       const maxSupply = 120000000;
       const mcap = currentPriceInr * circSupply;
@@ -119,21 +113,6 @@ export const Markets: React.FC = () => {
         symbol: "ETH",
         name: "Ethereum",
         rank: 2,
-        mcap,
-        vol,
-        fdv: currentPriceInr * maxSupply,
-        circSupply,
-        maxSupply
-      };
-    } else { // USDC
-      const circSupply = 34000000000;
-      const maxSupply = 34000000000;
-      const mcap = currentPriceInr * circSupply;
-      const vol = mcap * 0.04;
-      return {
-        symbol: "USDC",
-        name: "USD Coin",
-        rank: 5,
         mcap,
         vol,
         fdv: currentPriceInr * maxSupply,
@@ -230,7 +209,6 @@ export const Markets: React.FC = () => {
               <option value="MYC">MYC</option>
               <option value="ONYX">ONYX</option>
               <option value="ETH">ETH</option>
-              <option value="USDC">USDC</option>
             </select>
           </div>
           <button className="circle-btn" title="Add to watchlist" style={{ border: "1px solid var(--border-glass)" }}>
@@ -297,11 +275,7 @@ export const Markets: React.FC = () => {
               On-Chain Pricing Method
             </h4>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
-              {selectedPair === "USDC" ? (
-                "Stable coin index. Pegged to fiat INR exchange rates (₹83.00) with minor global market variances."
-              ) : (
-                `Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: ${stats.name} reserve divided by USDC reserve.`
-              )}
+              Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: {stats.name} reserve divided by USDC reserve.
             </p>
           </section>
         </div>
