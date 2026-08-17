@@ -7,11 +7,11 @@ import { Swap } from "./components/Swap";
 import { TxHistory } from "./components/TxHistory";
 import { LockScreen } from "./components/LockScreen";
 import { Markets } from "./components/Markets";
-import { Landmark, Send, ArrowRightLeft, Lock, LogOut, Bell, ChevronDown, PieChart, Shield, TrendingUp } from "lucide-react";
+import { Landmark, Send, ArrowRightLeft, Lock, LogOut, Bell, ChevronDown, PieChart, Shield, TrendingUp, History } from "lucide-react";
 
 function MainApp() {
   const { address, isLocked, hasSavedWallet, lockWallet, disconnectWallet } = useWallet();
-  const [activeTab, setActiveTab] = useState<"portfolio" | "send" | "swap" | "markets">("portfolio");
+  const [activeTab, setActiveTab] = useState<"portfolio" | "send" | "swap" | "markets" | "transactions">("portfolio");
   const [copied, setCopied] = useState(false);
 
   const handleCopyAddress = () => {
@@ -50,7 +50,8 @@ function MainApp() {
     if (activeTab === "portfolio") return "Portfolio Analysis";
     if (activeTab === "send") return "Send / Receive Assets";
     if (activeTab === "swap") return "Swap Exchange";
-    return "Market Live Rates";
+    if (activeTab === "markets") return "Market Live Rates";
+    return "Transaction History Log";
   };
 
   const truncatedAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
@@ -93,6 +94,13 @@ function MainApp() {
           >
             <TrendingUp size={18} />
             Markets
+          </button>
+          <button
+            className={`sidebar-menu-item ${activeTab === "transactions" ? "active" : ""}`}
+            onClick={() => setActiveTab("transactions")}
+          >
+            <History size={18} />
+            Transactions
           </button>
           
           <button
@@ -201,6 +209,7 @@ function MainApp() {
             {activeTab === "send" && <SendReceive />}
             {activeTab === "swap" && <Swap />}
             {activeTab === "markets" && <Markets />}
+            {activeTab === "transactions" && <TxHistory />}
           </div>
 
           {/* Persistent transaction history displayed at bottom of current layout */}
@@ -240,6 +249,13 @@ function MainApp() {
         >
           <TrendingUp size={20} />
           Markets
+        </button>
+        <button
+          className={`bottom-nav-item ${activeTab === "transactions" ? "active" : ""}`}
+          onClick={() => setActiveTab("transactions")}
+        >
+          <History size={20} />
+          Tx History
         </button>
       </nav>
     </div>

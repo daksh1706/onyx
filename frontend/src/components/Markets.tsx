@@ -1,23 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
-import { ArrowDown, ArrowUp, Share2, Star, Clock, ArrowRightLeft, Landmark } from "lucide-react";
+import { ArrowDown, ArrowUp, Share2, Star, Landmark } from "lucide-react";
 
 export const Markets: React.FC = () => {
-  const { reserves, onyxReserves, address, transactions } = useWallet();
+  const { reserves, onyxReserves, address } = useWallet();
 
-  const [selectedPair, setSelectedPair] = useState<"MYC/USDC" | "ONYX/USDC" | "ETH/USDC" | "USDC/INR">("MYC/USDC");
+  const [selectedPair, setSelectedPair] = useState<"MYC" | "ONYX" | "ETH" | "USDC">("MYC");
   const [timeframe, setTimeframe] = useState<"24h" | "1W" | "1M" | "1Y" | "All">("24h");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  
-  // State for simulated network trade feed (to show global pool activity)
-  const [liveTrades, setLiveTrades] = useState<{
-    id: string;
-    time: string;
-    type: "BUY" | "SELL";
-    price: number;
-    amount: number;
-    hash: string;
-  }[]>([]);
 
   const INR_MULTIPLIER = 83;
 
@@ -30,9 +20,9 @@ export const Markets: React.FC = () => {
   const getPriceInInr = (rawPrice: number) => rawPrice * INR_MULTIPLIER;
 
   const currentPriceInr = 
-    selectedPair === "MYC/USDC" ? getPriceInInr(rawMycPrice) :
-    selectedPair === "ONYX/USDC" ? getPriceInInr(rawOnyxPrice) :
-    selectedPair === "ETH/USDC" ? getPriceInInr(rawEthPrice) :
+    selectedPair === "MYC" ? getPriceInInr(rawMycPrice) :
+    selectedPair === "ONYX" ? getPriceInInr(rawOnyxPrice) :
+    selectedPair === "ETH" ? getPriceInInr(rawEthPrice) :
     getPriceInInr(rawUsdcPrice);
 
   // Address-seeded stable parameters
@@ -42,19 +32,19 @@ export const Markets: React.FC = () => {
   const getHistoricalPoints = () => {
     let baseData = [1.02, 0.98, 0.95, 0.92, 0.96, 0.93, 0.99, 1.01, 1.03, 1.00];
     
-    if (selectedPair === "MYC/USDC") {
+    if (selectedPair === "MYC") {
       if (timeframe === "24h") baseData = [0.98, 0.99, 0.96, 0.97, 1.01, 0.98, 1.02, 1.00];
       else if (timeframe === "1W") baseData = [0.90, 0.95, 0.92, 0.97, 1.04, 1.02, 1.00];
       else baseData = [0.75, 0.82, 0.88, 0.96, 1.03, 1.00];
-    } else if (selectedPair === "ONYX/USDC") {
+    } else if (selectedPair === "ONYX") {
       if (timeframe === "24h") baseData = [1.03, 1.01, 1.02, 0.99, 0.98, 1.00];
       else if (timeframe === "1W") baseData = [1.12, 1.08, 1.04, 1.01, 0.97, 1.00];
       else baseData = [1.35, 1.20, 1.10, 1.05, 0.98, 1.00];
-    } else if (selectedPair === "ETH/USDC") {
+    } else if (selectedPair === "ETH") {
       if (timeframe === "24h") baseData = [0.99, 1.00, 0.98, 1.01, 1.00];
       else if (timeframe === "1W") baseData = [0.94, 0.96, 0.98, 1.02, 1.00];
       else baseData = [0.85, 0.90, 0.95, 1.00];
-    } else { // USDC/INR stablecoin index
+    } else { // USDC stablecoin index
       if (timeframe === "24h") baseData = [1.001, 0.999, 1.000, 1.002, 1.000, 0.998, 1.000];
       else if (timeframe === "1W") baseData = [0.999, 1.001, 1.000, 1.002, 1.000];
       else baseData = [1.000, 1.000, 1.000, 1.000];
@@ -90,7 +80,7 @@ export const Markets: React.FC = () => {
 
   // CoinMarketCap Statistics (Seeded but stable per token)
   const getStats = () => {
-    if (selectedPair === "MYC/USDC") {
+    if (selectedPair === "MYC") {
       const circSupply = 5000000 + (addressSeed % 1000000);
       const maxSupply = 21000000;
       const mcap = currentPriceInr * circSupply;
@@ -105,7 +95,7 @@ export const Markets: React.FC = () => {
         circSupply,
         maxSupply
       };
-    } else if (selectedPair === "ONYX/USDC") {
+    } else if (selectedPair === "ONYX") {
       const circSupply = 2500000 + (addressSeed % 500000);
       const maxSupply = 10000000;
       const mcap = currentPriceInr * circSupply;
@@ -120,7 +110,7 @@ export const Markets: React.FC = () => {
         circSupply,
         maxSupply
       };
-    } else if (selectedPair === "ETH/USDC") {
+    } else if (selectedPair === "ETH") {
       const circSupply = 120000000;
       const maxSupply = 120000000;
       const mcap = currentPriceInr * circSupply;
@@ -165,56 +155,7 @@ export const Markets: React.FC = () => {
     return "₹" + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
   };
 
-  // Generate dynamic live network transactions feed to represent real DEX trades
-  useEffect(() => {
-    const initializeTrades = () => {
-      const arr = Array.from({ length: 6 }).map((_, i) => {
-        const type: "BUY" | "SELL" = Math.random() > 0.5 ? "BUY" : "SELL";
-        const amount = Math.random() * (selectedPair === "ETH/USDC" ? 3 : 1500) + 1;
-        const offset = (Math.random() - 0.5) * 0.01;
-        const price = currentPriceInr * (1 + offset);
-        return {
-          id: Math.random().toString(36).substring(2, 9),
-          time: new Date(Date.now() - i * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type,
-          price,
-          amount,
-          hash: "0x" + Math.random().toString(16).substring(2, 10) + "..." + Math.random().toString(16).substring(2, 6)
-        };
-      });
-      setLiveTrades(arr);
-    };
 
-    initializeTrades();
-
-    // Tick trade updates to simulate an active stock order matching screen
-    const interval = setInterval(() => {
-      const type: "BUY" | "SELL" = Math.random() > 0.5 ? "BUY" : "SELL";
-      const amount = Math.random() * (selectedPair === "ETH/USDC" ? 3 : 1500) + 1;
-      const offset = (Math.random() - 0.5) * 0.005;
-      const price = currentPriceInr * (1 + offset);
-      
-      const newTrade = {
-        id: Math.random().toString(36).substring(2, 9),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        type,
-        price,
-        amount,
-        hash: "0x" + Math.random().toString(16).substring(2, 10) + "..." + Math.random().toString(16).substring(2, 6)
-      };
-
-      setLiveTrades((prev) => [newTrade, ...prev.slice(0, 5)]);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [selectedPair, currentPriceInr]);
-
-  // Read actual wallet transactions from database matching current token
-  const tokenSymbol = selectedPair.split("/")[0];
-  const userFilteredTxs = transactions.filter(tx => 
-    tx.token?.toUpperCase() === tokenSymbol.toUpperCase() ||
-    (tx.type?.toLowerCase().includes("swap") && (selectedPair === "MYC/USDC" || selectedPair === "ONYX/USDC"))
-  );
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -286,10 +227,10 @@ export const Markets: React.FC = () => {
                 cursor: "pointer"
               }}
             >
-              <option value="MYC/USDC">MYC / USDC</option>
-              <option value="ONYX/USDC">ONYX / USDC</option>
-              <option value="ETH/USDC">ETH / USDC</option>
-              <option value="USDC/INR">USDC / INR</option>
+              <option value="MYC">MYC</option>
+              <option value="ONYX">ONYX</option>
+              <option value="ETH">ETH</option>
+              <option value="USDC">USDC</option>
             </select>
           </div>
           <button className="circle-btn" title="Add to watchlist" style={{ border: "1px solid var(--border-glass)" }}>
@@ -356,7 +297,7 @@ export const Markets: React.FC = () => {
               On-Chain Pricing Method
             </h4>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
-              {selectedPair === "USDC/INR" ? (
+              {selectedPair === "USDC" ? (
                 "Stable coin index. Pegged to fiat INR exchange rates (₹83.00) with minor global market variances."
               ) : (
                 `Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: ${stats.name} reserve divided by USDC reserve.`
@@ -532,120 +473,6 @@ export const Markets: React.FC = () => {
             </div>
           </section>
         </div>
-
-      </div>
-
-      {/* NEW: Live Market Trades & User Transactions split section */}
-      <div className="dashboard-grid" style={{ marginTop: "12px" }}>
-        
-        {/* User Transactions on Selected Pair (col-span-6) */}
-        <section className="glass-panel grid-col-6" style={{
-          borderRadius: "16px",
-          padding: "20px",
-          border: "1px solid var(--border-glass)",
-          minHeight: "300px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Clock size={16} style={{ color: "var(--color-primary)" }} />
-            Your Transaction History ({tokenSymbol})
-          </h3>
-          
-          <div style={{ overflowX: "auto", flex: 1 }}>
-            {userFilteredTxs.length === 0 ? (
-              <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: "var(--text-muted)", gap: "8px", padding: "40px 0" }}>
-                <Clock size={32} style={{ opacity: 0.3 }} />
-                <p style={{ fontSize: "12px", margin: 0 }}>No transactions recorded for {tokenSymbol} yet.</p>
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-                <thead>
-                  <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-glass)", paddingBottom: "8px" }}>
-                    <th style={{ padding: "8px 4px" }}>Type</th>
-                    <th style={{ padding: "8px 4px" }}>Amount</th>
-                    <th style={{ padding: "8px 4px" }}>Valuation</th>
-                    <th style={{ padding: "8px 4px" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userFilteredTxs.slice(0, 5).map((tx, idx) => {
-                    return (
-                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
-                        <td style={{ padding: "10px 4px", fontWeight: 700, color: "var(--text-main)" }}>
-                          {tx.type || "Transfer"}
-                        </td>
-                        <td className="mono-text" style={{ padding: "10px 4px" }}>
-                          {tx.amount} {tx.token || tokenSymbol}
-                        </td>
-                        <td className="mono-text" style={{ padding: "10px 4px", fontWeight: 700 }}>
-                          {formatCurrency(parseFloat(tx.amount || "0") * currentPriceInr)}
-                        </td>
-                        <td style={{ padding: "10px 4px" }}>
-                          <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "10px" }}>
-                            Confirmed
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
-
-        {/* Global Live Network Trade Feed (col-span-6) */}
-        <section className="glass-panel grid-col-6" style={{
-          borderRadius: "16px",
-          padding: "20px",
-          border: "1px solid var(--border-glass)",
-          minHeight: "300px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <ArrowRightLeft size={16} style={{ color: "var(--color-primary)" }} />
-            Live Global Pool Ticker Feed (AMM)
-          </h3>
-          
-          <div style={{ overflowX: "auto", flex: 1 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-              <thead>
-                <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border-glass)" }}>
-                  <th style={{ padding: "8px 4px" }}>Time</th>
-                  <th style={{ padding: "8px 4px" }}>Trade</th>
-                  <th style={{ padding: "8px 4px" }}>Price</th>
-                  <th style={{ padding: "8px 4px" }}>Size ({tokenSymbol})</th>
-                  <th style={{ padding: "8px 4px" }}>Hash</th>
-                </tr>
-              </thead>
-              <tbody>
-                {liveTrades.map((trade) => (
-                  <tr key={trade.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
-                    <td className="mono-text" style={{ padding: "8px 4px", color: "var(--text-muted)" }}>{trade.time}</td>
-                    <td style={{ padding: "8px 4px" }}>
-                      <span style={{ 
-                        fontWeight: 700, 
-                        color: trade.type === "BUY" ? "#4edea3" : "rgba(255, 0, 85, 0.85)"
-                      }}>
-                        {trade.type}
-                      </span>
-                    </td>
-                    <td className="mono-text" style={{ padding: "8px 4px", fontWeight: 700 }}>
-                      {formatCurrency(trade.price)}
-                    </td>
-                    <td className="mono-text" style={{ padding: "8px 4px" }}>
-                      {trade.amount.toFixed(selectedPair === "ETH/USDC" ? 3 : 1)}
-                    </td>
-                    <td className="mono-text" style={{ padding: "8px 4px", opacity: 0.5 }}>{trade.hash}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
       </div>
     </div>
   );
