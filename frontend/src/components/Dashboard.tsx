@@ -68,7 +68,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
       const tx = await claimFaucet();
       setFaucetMessage({ text: "Submitted transaction...", error: false });
       await tx.wait();
-      setFaucetMessage({ text: "Claimed 100 MYC, 100 USDC, and 100 ONYX!", error: false });
+      setFaucetMessage({ text: "Claimed 100 MYC, 100 INR, and 100 ONYX!", error: false });
       refreshState();
       checkFaucetCooldown();
       setTimeout(() => setFaucetMessage(null), 5000);
@@ -510,7 +510,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-secondary)" }} />
-                  <span style={{ fontWeight: 600 }}>USD Coin (USDC)</span>
+                  <span style={{ fontWeight: 600 }}>Indian Rupee (INR)</span>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : usdcPercent.toFixed(1)}%</span>
@@ -549,7 +549,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 Developer Faucet
               </h3>
               <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-                Get instant test liquidity: claim 100 MYC, 100 Mock USDC, and 100 ONYX to experiment with trades.
+                Get instant test liquidity: claim 100 MYC, 100 Mock INR, and 100 ONYX to experiment with trades.
               </p>
             </div>
             
@@ -759,7 +759,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-secondary)" }} />
-                      USD Coin (USDC)
+                      Indian Rupee (INR)
                     </div>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(usdcPrice, 2)}</td>

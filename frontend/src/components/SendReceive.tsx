@@ -203,13 +203,13 @@ export const SendReceive: React.FC = () => {
                     boxShadow: "none"
                   }}
                 >
-                  {sym}
+                  {sym === "USDC" ? "INR" : sym}
                 </button>
               ))}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "13px" }}>
               <span style={{ color: "var(--text-muted)" }}>Available Balance:</span>
-              <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{getSelectedTokenBalance()} {token}</span>
+              <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{getSelectedTokenBalance()} {token === "USDC" ? "INR" : token}</span>
             </div>
           </div>
 
@@ -325,7 +325,7 @@ export const SendReceive: React.FC = () => {
         /* Receive Panel */
         <div className="fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "24px" }}>
           <p style={{ textAlign: "center" }}>
-            Share this address or scan the QR code to receive ETH, MYC, or mock USDC on the Sepolia network.
+            Share this address or scan the QR code to receive ETH, MYC, or INR on the Sepolia network.
           </p>
 
           {/* QR Code Container */}

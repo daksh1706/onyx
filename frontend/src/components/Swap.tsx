@@ -383,15 +383,15 @@ export const Swap: React.FC = () => {
         </h4>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>MYC ➔ USDC Pool Reserves</span>
+            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>MYC ➔ INR Pool Reserves</span>
             <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
-              {reserves ? `${parseFloat(reserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} MYC / ${parseFloat(reserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} USDC` : "Loading..."}
+              {reserves ? `${parseFloat(reserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} MYC / ${parseFloat(reserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} INR` : "Loading..."}
             </span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>ONYX ➔ USDC Pool Reserves</span>
+            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>ONYX ➔ INR Pool Reserves</span>
             <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
-              {onyxReserves ? `${parseFloat(onyxReserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} ONYX / ${parseFloat(onyxReserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} USDC` : "Loading..."}
+              {onyxReserves ? `${parseFloat(onyxReserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} ONYX / ${parseFloat(onyxReserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} INR` : "Loading..."}
             </span>
           </div>
         </div>
@@ -412,7 +412,7 @@ export const Swap: React.FC = () => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "13px" }}>
             <span>From</span>
-            <span>Balance: {parseFloat(getFromBalance()).toFixed(4)} {fromToken}</span>
+            <span>Balance: {parseFloat(getFromBalance()).toFixed(4)} {fromToken === "USDC" ? "INR" : fromToken}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <input
@@ -453,7 +453,7 @@ export const Swap: React.FC = () => {
               }}
             >
               <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
-              <option value="USDC" style={{ background: "var(--bg-dark)" }}>USDC</option>
+              <option value="USDC" style={{ background: "var(--bg-dark)" }}>INR</option>
               <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
             </select>
           </div>
@@ -498,7 +498,7 @@ export const Swap: React.FC = () => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "13px" }}>
             <span>To (Estimated)</span>
-            <span>Balance: {parseFloat(getToBalance()).toFixed(4)} {toToken}</span>
+            <span>Balance: {parseFloat(getToBalance()).toFixed(4)} {toToken === "USDC" ? "INR" : toToken}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <input
@@ -537,7 +537,7 @@ export const Swap: React.FC = () => {
               }}
             >
               <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
-              <option value="USDC" style={{ background: "var(--bg-dark)" }}>USDC</option>
+              <option value="USDC" style={{ background: "var(--bg-dark)" }}>INR</option>
               <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
             </select>
           </div>
