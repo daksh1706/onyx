@@ -191,7 +191,7 @@ export const WalletInit: React.FC = () => {
             {tab === "import-seed" && <Import size={14} style={{ marginRight: "4px" }} />}
             {tab === "import-key" && <Key size={14} style={{ marginRight: "4px" }} />}
             {tab === "metamask" && <Layers size={14} style={{ marginRight: "4px" }} />}
-            {tab === "create" ? "New Wallet" : tab === "import-seed" ? "Seed" : tab === "import-key" ? "Private Key" : "MetaMask"}
+            {tab === "create" ? "Create Wallet" : tab === "import-seed" ? "Import Seed" : tab === "import-key" ? "Import Key" : "MetaMask"}
           </button>
         ))}
       </div>
