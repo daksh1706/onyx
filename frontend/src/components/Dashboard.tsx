@@ -87,13 +87,19 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     }
   };
 
-  // Convert assets to USD valuation using real-time AMM spot rates where possible
-  const mycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
-  const onyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
+  // Convert assets to INR valuation using real-time AMM spot rates (1 USD = 83 INR)
+  const INR_MULTIPLIER = 83;
+  const rawMycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
+  const rawOnyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
 
-  const ethVal = parseFloat(ethBalance || "0") * 3500;
+  const mycPrice = rawMycPrice * INR_MULTIPLIER;
+  const onyxPrice = rawOnyxPrice * INR_MULTIPLIER;
+  const ethPrice = 3500.00 * INR_MULTIPLIER;
+  const usdcPrice = 1.00 * INR_MULTIPLIER;
+
+  const ethVal = parseFloat(ethBalance || "0") * ethPrice;
   const mycVal = parseFloat(mycBalance || "0") * mycPrice;
-  const usdcVal = parseFloat(usdcBalance || "0") * 1.00;
+  const usdcVal = parseFloat(usdcBalance || "0") * usdcPrice;
   const onyxVal = parseFloat(onyxBalance || "0") * onyxPrice;
   const totalUsdVal = ethVal + mycVal + usdcVal + onyxVal;
 
@@ -156,7 +162,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               Net Worth
             </p>
             <h2 className="mono-text" style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-primary)" }}>
-              ${formatNumber(totalUsdVal)}
+              ₹{formatNumber(totalUsdVal)}
             </h2>
           </div>
           <div className="glass-panel" style={{ padding: "12px 24px", borderRadius: "12px", borderLeft: "4px solid #4edea3" }}>
@@ -164,7 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               24h Gain
             </p>
             <h2 className="mono-text" style={{ fontSize: "18px", fontWeight: 700, color: "#4edea3", marginTop: "4px" }}>
-              +${formatNumber(gainUsd)} (+{gainPercent.toFixed(2)}%)
+              +₹{formatNumber(gainUsd)} (+{gainPercent.toFixed(2)}%)
             </h2>
           </div>
         </div>
@@ -374,7 +380,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 }}>
                   <p style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>ACTIVE VALUATION</p>
                   <p className="mono-text" style={{ fontWeight: 700, color: "var(--color-primary)" }}>
-                    ${formatNumber(totalUsdVal)}
+                    ₹{formatNumber(totalUsdVal)}
                   </p>
                 </div>
               </div>
@@ -484,7 +490,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : mycPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>${formatNumber(mycVal, 0)}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(mycVal, 0)}</span>
                 </div>
               </div>
 
@@ -496,7 +502,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : onyxPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>${formatNumber(onyxVal, 0)}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(onyxVal, 0)}</span>
                 </div>
               </div>
 
@@ -508,7 +514,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : usdcPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>${formatNumber(usdcVal, 0)}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(usdcVal, 0)}</span>
                 </div>
               </div>
 
@@ -520,7 +526,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : ethPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>${formatNumber(ethVal, 0)}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(ethVal, 0)}</span>
                 </div>
               </div>
 
@@ -680,12 +686,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                       Ethereum (ETH)
                     </div>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>$3,500.00</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethPrice)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(ethBalance || "0"), 4)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(ethVal)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <svg width="64" height="16" stroke="#4edea3" fill="none" strokeWidth="2">
                       <path d="M 0 12 L 15 10 L 30 14 L 45 4 L 64 2" />
@@ -700,23 +706,23 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                       MyCoin (MYC)
                     </div>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(mycPrice, 4)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ 
-                      background: mycPrice >= 0.50 ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
-                      color: mycPrice >= 0.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      background: mycPrice >= (0.50 * INR_MULTIPLIER) ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
+                      color: mycPrice >= (0.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
                       padding: "2px 6px", 
                       borderRadius: "4px", 
                       fontSize: "11px" 
                     }}>
-                      {mycPrice >= 0.50 ? "+" : ""}{(((mycPrice - 0.50) / 0.50) * 100).toFixed(2)}%
+                      {mycPrice >= (0.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawMycPrice - 0.50) / 0.50) * 100).toFixed(2)}%
                     </span>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(mycBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(mycVal)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={mycPrice >= 0.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
-                      <path d={mycPrice >= 0.50 ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
+                    <svg width="64" height="16" stroke={mycPrice >= (0.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                      <path d={mycPrice >= (0.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
                     </svg>
                   </td>
                 </tr>
@@ -728,23 +734,23 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                       Onyx Token (ONYX)
                     </div>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(onyxPrice, 4)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ 
-                      background: onyxPrice >= 2.50 ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
-                      color: onyxPrice >= 2.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      background: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
+                      color: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
                       padding: "2px 6px", 
                       borderRadius: "4px", 
                       fontSize: "11px" 
                     }}>
-                      {onyxPrice >= 2.50 ? "+" : ""}{(((onyxPrice - 2.50) / 2.50) * 100).toFixed(2)}%
+                      {onyxPrice >= (2.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawOnyxPrice - 2.50) / 2.50) * 100).toFixed(2)}%
                     </span>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(onyxBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(onyxVal)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={onyxPrice >= 2.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
-                      <path d={onyxPrice >= 2.50 ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
+                    <svg width="64" height="16" stroke={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                      <path d={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
                     </svg>
                   </td>
                 </tr>
@@ -756,12 +762,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                       USD Coin (USDC)
                     </div>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>$1.0000</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(usdcPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(usdcBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(usdcVal)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(usdcVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <svg width="64" height="16" stroke="var(--text-muted)" fill="none" strokeWidth="2">
                       <path d="M 0 8 L 20 8 L 40 8 L 64 8" />
