@@ -51,7 +51,8 @@ describe("SimpleSwap AMM", function () {
       const amountB = ethers.parseUnits("500", 6); // 500 USDC
 
       // Initial LP = sqrt(1000 * 10^18 * 500 * 10^6 * 10^12) = 707106781186547524400
-      const expectedLP = 707106781186547524400n;
+      // Less MINIMUM_LIQUIDITY (1000) locked to address(0)
+      const expectedLP = 707106781186547523400n;
 
       await expect(swapPool.connect(user).addLiquidity(amountA, amountB))
         .to.emit(swapPool, "LiquidityAdded")
@@ -96,6 +97,7 @@ describe("SimpleSwap AMM", function () {
       const balanceMycBefore = await myCoin.balanceOf(user.address);
       const balanceUsdcBefore = await mockUsdc.balanceOf(user.address);
 
+      const totalLPBefore = await swapPool.totalSupply();
       // Burn half of LP shares
       const lpToRemove = lpBalance / 2n;
       await swapPool.connect(user).removeLiquidity(lpToRemove);
@@ -103,10 +105,13 @@ describe("SimpleSwap AMM", function () {
       const balanceMycAfter = await myCoin.balanceOf(user.address);
       const balanceUsdcAfter = await mockUsdc.balanceOf(user.address);
 
-      expect(balanceMycAfter - balanceMycBefore).to.equal(amountA / 2n);
-      expect(balanceUsdcAfter - balanceUsdcBefore).to.equal(amountB / 2n);
-      expect(await swapPool.reserveA()).to.equal(amountA / 2n);
-      expect(await swapPool.reserveB()).to.equal(amountB / 2n);
+      const expectedAWithdrawn = (lpToRemove * amountA) / totalLPBefore;
+      const expectedBWithdrawn = (lpToRemove * amountB) / totalLPBefore;
+
+      expect(balanceMycAfter - balanceMycBefore).to.equal(expectedAWithdrawn);
+      expect(balanceUsdcAfter - balanceUsdcBefore).to.equal(expectedBWithdrawn);
+      expect(await swapPool.reserveA()).to.equal(amountA - expectedAWithdrawn);
+      expect(await swapPool.reserveB()).to.equal(amountB - expectedBWithdrawn);
     });
   });
 
@@ -150,7 +155,7 @@ describe("SimpleSwap AMM", function () {
 
       await expect(
         swapPool.connect(user).swap(await myCoin.getAddress(), amountIn, highMinAmountOut)
-      ).to.be.revertedWith("SimpleSwap: Slippage limit exceeded");
+      ).to.be.revertedWithCustomError(swapPool, "SlippageLimitExceeded");
     });
 
     it("Should return correct amountOut via getAmountOut", async function () {

@@ -1,18 +1,20 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { MyCoin, MockUSDC, Faucet } from "../typechain-types";
+import { MyCoin, MockUSDC, CustomToken, Faucet } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("Faucet Contract", function () {
   let myCoin: MyCoin;
   let mockUsdc: MockUSDC;
+  let customToken: CustomToken;
   let faucet: Faucet;
   let owner: HardhatEthersSigner;
   let user: HardhatEthersSigner;
 
   const FAUCET_MYC_AMOUNT = ethers.parseEther("100");
   const FAUCET_USDC_AMOUNT = ethers.parseUnits("100", 6);
+  const FAUCET_CUSTOM_AMOUNT = ethers.parseEther("100");
 
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
@@ -23,22 +25,28 @@ describe("Faucet Contract", function () {
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
     mockUsdc = (await MockUSDCFactory.deploy()) as MockUSDC;
 
+    const CustomTokenFactory = await ethers.getContractFactory("CustomToken");
+    customToken = (await CustomTokenFactory.deploy("Onyx", "ONYX", ethers.parseEther("1000000"))) as CustomToken;
+
     const FaucetFactory = await ethers.getContractFactory("Faucet");
     faucet = (await FaucetFactory.deploy(
       await myCoin.getAddress(),
       await mockUsdc.getAddress(),
+      await customToken.getAddress(),
       owner.address
     )) as Faucet;
 
     // Fund the faucet with enough tokens
     await myCoin.connect(owner).mint(await faucet.getAddress(), ethers.parseEther("10000"));
     await mockUsdc.connect(owner).mint(await faucet.getAddress(), ethers.parseUnits("10000", 6));
+    await customToken.connect(owner).transfer(await faucet.getAddress(), ethers.parseEther("10000"));
   });
 
   describe("Deployment", function () {
     it("Should set the correct token addresses", async function () {
       expect(await faucet.myCoin()).to.equal(await myCoin.getAddress());
       expect(await faucet.mockUsdc()).to.equal(await mockUsdc.getAddress());
+      expect(await faucet.customToken()).to.equal(await customToken.getAddress());
     });
   });
 
@@ -46,21 +54,27 @@ describe("Faucet Contract", function () {
     it("Should dispense correct amounts to the user", async function () {
       const balanceMycBefore = await myCoin.balanceOf(user.address);
       const balanceUsdcBefore = await mockUsdc.balanceOf(user.address);
+      const balanceCustomBefore = await customToken.balanceOf(user.address);
 
       await faucet.connect(user).requestTokens();
 
       const balanceMycAfter = await myCoin.balanceOf(user.address);
       const balanceUsdcAfter = await mockUsdc.balanceOf(user.address);
+      const balanceCustomAfter = await customToken.balanceOf(user.address);
 
       expect(balanceMycAfter - balanceMycBefore).to.equal(FAUCET_MYC_AMOUNT);
       expect(balanceUsdcAfter - balanceUsdcBefore).to.equal(FAUCET_USDC_AMOUNT);
+      expect(balanceCustomAfter - balanceCustomBefore).to.equal(FAUCET_CUSTOM_AMOUNT);
     });
 
     it("Should enforce the 24-hour cooldown", async function () {
       await faucet.connect(user).requestTokens();
 
       // Second request should revert due to active cooldown
-      await expect(faucet.connect(user).requestTokens()).to.be.revertedWith("Faucet: Cooldown active");
+      await expect(faucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
+        faucet,
+        "CooldownActive"
+      );
 
       // Advance blockchain time by 24 hours
       await time.increase(24 * 60 * 60);
@@ -74,14 +88,17 @@ describe("Faucet Contract", function () {
       const emptyFaucet = (await FaucetFactory.deploy(
         await myCoin.getAddress(),
         await mockUsdc.getAddress(),
+        await customToken.getAddress(),
         owner.address
       )) as Faucet;
 
-      // Only fund USDC
+      // Only fund USDC and Custom
       await mockUsdc.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
+      await customToken.connect(owner).transfer(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
 
-      await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWith(
-        "Faucet: Insufficient MYC balance"
+      await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
+        emptyFaucet,
+        "InsufficientFaucetBalance"
       );
     });
 
@@ -90,14 +107,36 @@ describe("Faucet Contract", function () {
       const emptyFaucet = (await FaucetFactory.deploy(
         await myCoin.getAddress(),
         await mockUsdc.getAddress(),
+        await customToken.getAddress(),
         owner.address
       )) as Faucet;
 
-      // Only fund MYC
+      // Only fund MYC and Custom
       await myCoin.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
+      await customToken.connect(owner).transfer(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
 
-      await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWith(
-        "Faucet: Insufficient USDC balance"
+      await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
+        emptyFaucet,
+        "InsufficientFaucetBalance"
+      );
+    });
+
+    it("Should fail if the faucet has insufficient ONYX (CustomToken)", async function () {
+      const FaucetFactory = await ethers.getContractFactory("Faucet");
+      const emptyFaucet = (await FaucetFactory.deploy(
+        await myCoin.getAddress(),
+        await mockUsdc.getAddress(),
+        await customToken.getAddress(),
+        owner.address
+      )) as Faucet;
+
+      // Only fund MYC and USDC
+      await myCoin.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
+      await mockUsdc.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
+
+      await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
+        emptyFaucet,
+        "InsufficientFaucetBalance"
       );
     });
   });

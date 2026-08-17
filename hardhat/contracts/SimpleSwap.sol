@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -11,24 +12,44 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * It inherits ERC20 to represent LP shares.
  */
 contract SimpleSwap is ERC20, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     IERC20 public immutable tokenA; // MYC (18 decimals)
     IERC20 public immutable tokenB; // Mock USDC (6 decimals)
 
     uint256 public reserveA;
     uint256 public reserveB;
     uint256 public immutable scaleFactor;
+    uint256 public constant MINIMUM_LIQUIDITY = 10**3;
 
     event LiquidityAdded(address indexed provider, uint256 amountA, uint256 amountB, uint256 lpShares);
     event LiquidityRemoved(address indexed provider, uint256 amountA, uint256 amountB, uint256 lpShares);
     event Swapped(address indexed swapper, address indexed tokenIn, uint256 amountIn, uint256 amountOut);
 
+    // Custom errors
+    error InvalidAddress();
+    error ZeroAmount();
+    error InsufficientLiquidityMinted();
+    error OptimalAmountExceedsDesired();
+    error ZeroLPAmount();
+    error NoLPTokensExist();
+    error InsufficientReservesReturned();
+    error InvalidToken();
+    error SlippageLimitExceeded();
+    error InsufficientReservesInPool();
+
     constructor(address _tokenA, address _tokenB) ERC20("SimpleSwap LP", "SS-LP") {
-        require(_tokenA != address(0) && _tokenB != address(0), "SimpleSwap: Invalid token addresses");
+        if (_tokenA == address(0) || _tokenB == address(0)) {
+            revert InvalidAddress();
+        }
         tokenA = IERC20(_tokenA);
         tokenB = IERC20(_tokenB);
 
         uint8 decimalsA = ERC20(_tokenA).decimals();
         uint8 decimalsB = ERC20(_tokenB).decimals();
+        if (decimalsA + decimalsB > 36) {
+            revert InvalidToken();
+        }
         scaleFactor = 10**(36 - uint256(decimalsA) - uint256(decimalsB));
     }
 
@@ -58,12 +79,22 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
         nonReentrant
         returns (uint256 amountA, uint256 amountB, uint256 liquidity)
     {
-        require(amountADesired > 0 && amountBDesired > 0, "SimpleSwap: Zero amount");
+        if (amountADesired == 0 || amountBDesired == 0) {
+            revert ZeroAmount();
+        }
+
+        uint256 totalLP = totalSupply();
 
         if (reserveA == 0 && reserveB == 0) {
             amountA = amountADesired;
             amountB = amountBDesired;
-            liquidity = sqrt(amountA * amountB * scaleFactor);
+            uint256 rawLiquidity = sqrt(amountA * amountB * scaleFactor);
+            if (rawLiquidity <= MINIMUM_LIQUIDITY) {
+                revert InsufficientLiquidityMinted();
+            }
+            liquidity = rawLiquidity - MINIMUM_LIQUIDITY;
+            // Permanent lock of MINIMUM_LIQUIDITY to protect against inflation attacks
+            _mint(address(0x000000000000000000000000000000000000dEaD), MINIMUM_LIQUIDITY);
         } else {
             uint256 amountBOptimal = (amountADesired * reserveB) / reserveA;
             if (amountBOptimal <= amountBDesired) {
@@ -71,30 +102,40 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
                 amountB = amountBOptimal;
             } else {
                 uint256 amountAOptimal = (amountBDesired * reserveA) / reserveB;
-                require(amountAOptimal <= amountADesired, "SimpleSwap: Optimal A exceeds desired");
+                if (amountAOptimal > amountADesired) {
+                    revert OptimalAmountExceedsDesired();
+                }
                 amountA = amountAOptimal;
                 amountB = amountBDesired;
             }
             
-            uint256 liquidityA = (amountA * totalSupply()) / reserveA;
-            uint256 liquidityB = (amountB * totalSupply()) / reserveB;
+            uint256 liquidityA = (amountA * totalLP) / reserveA;
+            uint256 liquidityB = (amountB * totalLP) / reserveB;
             liquidity = liquidityA < liquidityB ? liquidityA : liquidityB;
         }
 
-        require(liquidity > 0, "SimpleSwap: Insufficient liquidity minted");
+        if (liquidity == 0) {
+            revert InsufficientLiquidityMinted();
+        }
 
-        // Pull tokens from user
-        require(tokenA.transferFrom(msg.sender, address(this), amountA), "SimpleSwap: Token A transfer failed");
-        require(tokenB.transferFrom(msg.sender, address(this), amountB), "SimpleSwap: Token B transfer failed");
+        // Pull tokens from user safely and measure actual transfer amounts
+        uint256 balanceABefore = tokenA.balanceOf(address(this));
+        uint256 balanceBBefore = tokenB.balanceOf(address(this));
+
+        tokenA.safeTransferFrom(msg.sender, address(this), amountA);
+        tokenB.safeTransferFrom(msg.sender, address(this), amountB);
+
+        uint256 actualAmountA = tokenA.balanceOf(address(this)) - balanceABefore;
+        uint256 actualAmountB = tokenB.balanceOf(address(this)) - balanceBBefore;
 
         // Mint LP shares to user
         _mint(msg.sender, liquidity);
 
-        // Update reserves
-        reserveA = tokenA.balanceOf(address(this));
-        reserveB = tokenB.balanceOf(address(this));
+        // Update reserves based on actual received tokens
+        reserveA += actualAmountA;
+        reserveB += actualAmountB;
 
-        emit LiquidityAdded(msg.sender, amountA, amountB, liquidity);
+        emit LiquidityAdded(msg.sender, actualAmountA, actualAmountB, liquidity);
     }
 
     /**
@@ -106,21 +147,27 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
         nonReentrant
         returns (uint256 amountA, uint256 amountB)
     {
-        require(lpAmount > 0, "SimpleSwap: Zero LP amount");
+        if (lpAmount == 0) {
+            revert ZeroLPAmount();
+        }
         uint256 totalLP = totalSupply();
-        require(totalLP > 0, "SimpleSwap: No LP tokens exist");
+        if (totalLP == 0) {
+            revert NoLPTokensExist();
+        }
 
         amountA = (lpAmount * reserveA) / totalLP;
         amountB = (lpAmount * reserveB) / totalLP;
 
-        require(amountA > 0 && amountB > 0, "SimpleSwap: Insufficient reserves returned");
+        if (amountA == 0 || amountB == 0) {
+            revert InsufficientReservesReturned();
+        }
 
         // Burn LP tokens
         _burn(msg.sender, lpAmount);
 
         // Transfer underlying assets to provider
-        require(tokenA.transfer(msg.sender, amountA), "SimpleSwap: Token A transfer failed");
-        require(tokenB.transfer(msg.sender, amountB), "SimpleSwap: Token B transfer failed");
+        tokenA.safeTransfer(msg.sender, amountA);
+        tokenB.safeTransfer(msg.sender, amountB);
 
         // Update reserves
         reserveA = tokenA.balanceOf(address(this));
@@ -140,8 +187,12 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
         nonReentrant
         returns (uint256 amountOut)
     {
-        require(tokenIn == address(tokenA) || tokenIn == address(tokenB), "SimpleSwap: Invalid token");
-        require(amountIn > 0, "SimpleSwap: Zero input amount");
+        if (tokenIn != address(tokenA) && tokenIn != address(tokenB)) {
+            revert InvalidToken();
+        }
+        if (amountIn == 0) {
+            revert ZeroAmount();
+        }
 
         bool isTokenA = tokenIn == address(tokenA);
         IERC20 inputToken = isTokenA ? tokenA : tokenB;
@@ -155,20 +206,26 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
         uint256 denominator = (reserveIn * 1000) + amountInWithFee;
         amountOut = numerator / denominator;
 
-        require(amountOut >= minAmountOut, "SimpleSwap: Slippage limit exceeded");
-        require(amountOut <= reserveOut, "SimpleSwap: Insufficient reserves in pool");
+        if (amountOut < minAmountOut) {
+            revert SlippageLimitExceeded();
+        }
+        if (amountOut > reserveOut) {
+            revert InsufficientReservesInPool();
+        }
 
-        // Transfer input tokens from caller to pool
-        require(inputToken.transferFrom(msg.sender, address(this), amountIn), "SimpleSwap: Input transfer failed");
+        // Pull tokens from user safely and measure actual transfer amounts
+        uint256 balanceInBefore = inputToken.balanceOf(address(this));
+        inputToken.safeTransferFrom(msg.sender, address(this), amountIn);
+        uint256 actualAmountIn = inputToken.balanceOf(address(this)) - balanceInBefore;
 
         // Transfer output tokens from pool to caller
-        require(outputToken.transfer(msg.sender, amountOut), "SimpleSwap: Output transfer failed");
+        outputToken.safeTransfer(msg.sender, amountOut);
 
-        // Update reserves
+        // Update reserves using balance checks
         reserveA = tokenA.balanceOf(address(this));
         reserveB = tokenB.balanceOf(address(this));
 
-        emit Swapped(msg.sender, tokenIn, amountIn, amountOut);
+        emit Swapped(msg.sender, tokenIn, actualAmountIn, amountOut);
     }
 
     /**
@@ -177,7 +234,9 @@ contract SimpleSwap is ERC20, ReentrancyGuard {
      * @param amountIn The amount of tokenIn.
      */
     function getAmountOut(address tokenIn, uint256 amountIn) external view returns (uint256 amountOut) {
-        require(tokenIn == address(tokenA) || tokenIn == address(tokenB), "SimpleSwap: Invalid token");
+        if (tokenIn != address(tokenA) && tokenIn != address(tokenB)) {
+            revert InvalidToken();
+        }
         if (amountIn == 0) return 0;
         
         bool isTokenA = tokenIn == address(tokenA);

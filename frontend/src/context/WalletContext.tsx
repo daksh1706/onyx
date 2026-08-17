@@ -54,9 +54,15 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-const DEFAULT_RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
+const SEPOLIA_RPCS = [
+  import.meta.env.VITE_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+  "https://rpc.ankr.com/eth_sepolia",
+  "https://cloudflare-eth.com/sepolia",
+  "https://1rpc.io/sepolia"
+];
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [rpcIndex, setRpcIndex] = useState<number>(0);
   const [provider, setProvider] = useState<ethers.JsonRpcProvider | ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [address, setAddress] = useState<string | null>(null);
@@ -67,6 +73,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Authentication states
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [hasSavedWallet, setHasSavedWallet] = useState<boolean>(false);
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
 
   // Balance states
   const [ethBalance, setEthBalance] = useState<string>("0");
@@ -99,15 +106,19 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  // Initialize read-only provider
+  // Initialize and rotate provider on RPC index change
   useEffect(() => {
+    if (walletType === "metamask") return; // MetaMask uses its own provider
     try {
-      const p = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+      const p = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
       setProvider(p);
+      if (privateKey) {
+        setSigner(new Wallet(privateKey, p));
+      }
     } catch (e) {
-      console.error("Failed to connect to RPC:", e);
+      console.error("Failed to connect to RPC index " + rpcIndex, e);
     }
-  }, []);
+  }, [rpcIndex, privateKey, walletType]);
 
   const disconnectWallet = useCallback(() => {
     setSigner(null);
@@ -376,11 +387,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setTransactions(txList);
       }
     } catch (e) {
-      console.error("Error fetching balance/event details:", e);
+      console.error("Error fetching balance/event details, rotating RPC:", e);
+      if (walletType !== "metamask" && rpcIndex < SEPOLIA_RPCS.length - 1) {
+        setRpcIndex((prev) => prev + 1);
+      }
     } finally {
       setLoading(false);
     }
-  }, [address, provider, walletType, signer, contractConfigured, disconnectWallet]);
+  }, [address, provider, walletType, signer, contractConfigured, disconnectWallet, rpcIndex]);
 
   useEffect(() => {
     if (address && provider) {
@@ -407,7 +421,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setWalletType("in-memory");
 
       // Reconnect signer
-      const readProvider = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+      const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
       setProvider(readProvider);
       setSigner(new Wallet(randomWallet.privateKey, readProvider));
     }
@@ -431,7 +445,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAddress(node.address);
       setWalletType("in-memory");
 
-      const readProvider = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+      const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
       setProvider(readProvider);
       setSigner(new Wallet(node.privateKey, readProvider));
       return true;
@@ -458,7 +472,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAddress(tempWallet.address);
       setWalletType("in-memory");
 
-      const readProvider = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+      const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
       setProvider(readProvider);
       setSigner(new Wallet(formattedPk, readProvider));
       return true;
@@ -482,7 +496,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setPrivateKey(node.privateKey);
         setAddress(node.address);
         
-        const readProvider = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+        const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
         setProvider(readProvider);
         setSigner(new Wallet(node.privateKey, readProvider));
       } else if (savedPk) {
@@ -490,7 +504,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setPrivateKey(savedPk);
         setAddress(tempWallet.address);
 
-        const readProvider = new ethers.JsonRpcProvider(DEFAULT_RPC_URL);
+        const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
         setProvider(readProvider);
         setSigner(new Wallet(savedPk, readProvider));
       }
@@ -653,6 +667,40 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return tx;
   };
 
+  // Reset inactivity timer on user interactions
+  const resetInactivityTimer = useCallback(() => {
+    setLastActivity(Date.now());
+  }, []);
+
+  useEffect(() => {
+    if (!address || walletType !== "in-memory" || isLocked) return;
+
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
+    const handleActivity = () => {
+      resetInactivityTimer();
+    };
+
+    events.forEach((event) => {
+      window.addEventListener(event, handleActivity);
+    });
+
+    // Run active inactivity check every 10 seconds
+    const interval = setInterval(() => {
+      const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+      if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+        console.warn("Wallet session auto-locked due to inactivity.");
+        lockWallet();
+      }
+    }, 10000);
+
+    return () => {
+      events.forEach((event) => {
+        window.removeEventListener(event, handleActivity);
+      });
+      clearInterval(interval);
+    };
+  }, [address, walletType, isLocked, lastActivity, lockWallet, resetInactivityTimer]);
+
   return (
     <WalletContext.Provider
       value={{
@@ -671,7 +719,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         onyxReserves,
         transactions,
         loading,
-        rpcUrl: DEFAULT_RPC_URL,
+        rpcUrl: SEPOLIA_RPCS[rpcIndex],
         contractConfigured,
         isLocked,
         hasSavedWallet,
