@@ -39,9 +39,12 @@ interface WalletContextType {
   contractConfigured: boolean;
   isLocked: boolean;
   hasSavedWallet: boolean;
-  generateNewWallet: (password: string) => Promise<void>;
-  importWalletFromMnemonic: (phrase: string, password: string) => Promise<boolean>;
-  importWalletFromPrivateKey: (pk: string, password: string) => Promise<boolean>;
+  isAuthenticated: boolean;
+  username: string | null;
+  generateNewWallet: (username: string, password: string) => Promise<void>;
+  importWalletFromMnemonic: (username: string, phrase: string, password: string) => Promise<boolean>;
+  importWalletFromPrivateKey: (username: string, pk: string, password: string) => Promise<boolean>;
+  loginUser: (username: string, password: string) => Promise<boolean>;
   connectMetaMask: () => Promise<boolean>;
   disconnectWallet: () => void;
   lockWallet: () => void;
@@ -74,6 +77,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [hasSavedWallet, setHasSavedWallet] = useState<boolean>(false);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   // Balance states
   const [ethBalance, setEthBalance] = useState<string>("0");
@@ -99,10 +105,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Check saved wallet on startup
   useEffect(() => {
-    const saved = localStorage.getItem("mycoin_encrypted_wallet");
-    if (saved) {
+    const savedToken = localStorage.getItem("onyx_jwt_token");
+    const savedUser = localStorage.getItem("onyx_username");
+    const savedWallet = localStorage.getItem("onyx_encrypted_wallet");
+
+    if (savedToken && savedUser && savedWallet) {
+      setToken(savedToken);
+      setUsername(savedUser);
       setHasSavedWallet(true);
       setIsLocked(true);
+      setIsAuthenticated(true);
     }
   }, []);
 
@@ -132,7 +144,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setOnyxBalance("0");
     setLpBalance("0");
     setTransactions([]);
-    localStorage.removeItem("mycoin_encrypted_wallet");
+    localStorage.removeItem("onyx_jwt_token");
+    localStorage.removeItem("onyx_username");
+    localStorage.removeItem("onyx_encrypted_wallet");
+    setToken(null);
+    setUsername(null);
+    setIsAuthenticated(false);
     setHasSavedWallet(false);
     setIsLocked(false);
   }, []);
@@ -226,159 +243,187 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
         }
 
-        // 6. Fetch Tx History via events
-        const currentBlock = await provider.getBlockNumber();
-        const startBlock = Math.max(0, currentBlock - 5000); // Last 5000 blocks
+        // 6. Fetch Tx History (from backend cache if authenticated, else from blockchain logs)
+        let txList: Transaction[] = [];
+        let fetchedFromBackend = false;
 
-        const txList: Transaction[] = [];
-
-        // Claim events from Faucet
-        const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, provider);
-        const faucetClaims = await faucetContract.queryFilter(
-          faucetContract.filters.TokensDispensed(activeAddress),
-          startBlock,
-          currentBlock
-        );
-
-        for (const log of faucetClaims) {
-          const parsedLog = log as any;
-          txList.push({
-            hash: parsedLog.transactionHash,
-            type: "Faucet",
-            token: "MYC+USDC+ONYX",
-            amount: "100+100+100",
-            blockNumber: parsedLog.blockNumber,
-          });
+        if (isAuthenticated && token) {
+          try {
+            const res = await fetch("http://localhost:5000/api/transactions", {
+              headers: {
+                "Authorization": `Bearer ${token}`
+              }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              txList = data.map((t: any) => ({
+                hash: t.hash,
+                type: t.type as any,
+                token: t.token,
+                amount: t.amount,
+                otherAddress: t.otherAddress,
+                blockNumber: t.blockNumber,
+                timestamp: new Date(t.timestamp).getTime()
+              }));
+              fetchedFromBackend = true;
+            }
+          } catch (e) {
+            console.error("Failed to fetch transactions from MongoDB, falling back to blockchain logs:", e);
+          }
         }
 
-        // Swaps on SimpleSwap
-        const swapEvents = await swapContract.queryFilter(
-          swapContract.filters.Swapped(activeAddress),
-          startBlock,
-          currentBlock
-        );
+        if (!fetchedFromBackend) {
+          const currentBlock = await provider.getBlockNumber();
+          const startBlock = Math.max(0, currentBlock - 5000); // Last 5000 blocks
 
-        for (const log of swapEvents) {
-          const parsedLog = log as any;
-          const [, tokenIn, amountIn, amountOut] = parsedLog.args;
-          const isMyc = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.MyCoin.toLowerCase();
-          
-          txList.push({
-            hash: parsedLog.transactionHash,
-            type: "Swap",
-            token: isMyc ? "MYC → USDC" : "USDC → MYC",
-            amount: isMyc 
-              ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
-              : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
-            blockNumber: parsedLog.blockNumber,
-          });
-        }
-
-        // Swaps on OnyxSwap
-        if (CONTRACT_ADDRESSES.OnyxSwap) {
-          const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
-          const onyxSwapEvents = await onyxSwapContract.queryFilter(
-            onyxSwapContract.filters.Swapped(activeAddress),
+          // Claim events from Faucet
+          const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, provider);
+          const faucetClaims = await faucetContract.queryFilter(
+            faucetContract.filters.TokensDispensed(activeAddress),
             startBlock,
             currentBlock
           );
 
-          for (const log of onyxSwapEvents) {
+          for (const log of faucetClaims) {
+            const parsedLog = log as any;
+            txList.push({
+              hash: parsedLog.transactionHash,
+              type: "Faucet",
+              token: "MYC+USDC+ONYX",
+              amount: "100+100+100",
+              blockNumber: parsedLog.blockNumber,
+            });
+          }
+
+          // Swaps on SimpleSwap
+          const swapEvents = await swapContract.queryFilter(
+            swapContract.filters.Swapped(activeAddress),
+            startBlock,
+            currentBlock
+          );
+
+          for (const log of swapEvents) {
             const parsedLog = log as any;
             const [, tokenIn, amountIn, amountOut] = parsedLog.args;
-            const isOnyx = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.CustomToken.toLowerCase();
+            const isMyc = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.MyCoin.toLowerCase();
             
             txList.push({
               hash: parsedLog.transactionHash,
               type: "Swap",
-              token: isOnyx ? "ONYX → USDC" : "USDC → ONYX",
-              amount: isOnyx 
+              token: isMyc ? "MYC → USDC" : "USDC → MYC",
+              amount: isMyc 
                 ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
                 : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
               blockNumber: parsedLog.blockNumber,
             });
           }
-        }
 
-        // MYC Transfers (Send/Receive)
-        const mycOutgoing = await mycContract.queryFilter(
-          mycContract.filters.Transfer(activeAddress, null),
-          startBlock,
-          currentBlock
-        );
-        for (const log of mycOutgoing) {
-          const parsedLog = log as any;
-          const [, to, value] = parsedLog.args;
-          if (to.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && to.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
-            txList.push({
-              hash: parsedLog.transactionHash,
-              type: "Send",
-              token: "MYC",
-              amount: formatEther(value),
-              otherAddress: to,
-              blockNumber: parsedLog.blockNumber,
-            });
+          // Swaps on OnyxSwap
+          if (CONTRACT_ADDRESSES.OnyxSwap) {
+            const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
+            const onyxSwapEvents = await onyxSwapContract.queryFilter(
+              onyxSwapContract.filters.Swapped(activeAddress),
+              startBlock,
+              currentBlock
+            );
+
+            for (const log of onyxSwapEvents) {
+              const parsedLog = log as any;
+              const [, tokenIn, amountIn, amountOut] = parsedLog.args;
+              const isOnyx = tokenIn.toLowerCase() === CONTRACT_ADDRESSES.CustomToken.toLowerCase();
+              
+              txList.push({
+                hash: parsedLog.transactionHash,
+                type: "Swap",
+                token: isOnyx ? "ONYX → USDC" : "USDC → ONYX",
+                amount: isOnyx 
+                  ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
+                  : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
+                blockNumber: parsedLog.blockNumber,
+              });
+            }
           }
-        }
 
-        const mycIncoming = await mycContract.queryFilter(
-          mycContract.filters.Transfer(null, activeAddress),
-          startBlock,
-          currentBlock
-        );
-        for (const log of mycIncoming) {
-          const parsedLog = log as any;
-          const [from,, value] = parsedLog.args;
-          if (from.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && from.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
-            txList.push({
-              hash: parsedLog.transactionHash,
-              type: "Receive",
-              token: "MYC",
-              amount: formatEther(value),
-              otherAddress: from,
-              blockNumber: parsedLog.blockNumber,
-            });
+          // MYC Transfers (Send/Receive)
+          const mycOutgoing = await mycContract.queryFilter(
+            mycContract.filters.Transfer(activeAddress, null),
+            startBlock,
+            currentBlock
+          );
+          for (const log of mycOutgoing) {
+            const parsedLog = log as any;
+            const [, to, value] = parsedLog.args;
+            if (to.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && to.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
+              txList.push({
+                hash: parsedLog.transactionHash,
+                type: "Send",
+                token: "MYC",
+                amount: formatEther(value),
+                otherAddress: to,
+                blockNumber: parsedLog.blockNumber,
+              });
+            }
           }
-        }
 
-        // ONYX Transfers (Send/Receive)
-        const onyxOutgoing = await onyxContract.queryFilter(
-          onyxContract.filters.Transfer(activeAddress, null),
-          startBlock,
-          currentBlock
-        );
-        for (const log of onyxOutgoing) {
-          const parsedLog = log as any;
-          const [, to, value] = parsedLog.args;
-          if (to.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && to.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
-            txList.push({
-              hash: parsedLog.transactionHash,
-              type: "Send",
-              token: "ONYX",
-              amount: formatEther(value),
-              otherAddress: to,
-              blockNumber: parsedLog.blockNumber,
-            });
+          const mycIncoming = await mycContract.queryFilter(
+            mycContract.filters.Transfer(null, activeAddress),
+            startBlock,
+            currentBlock
+          );
+          for (const log of mycIncoming) {
+            const parsedLog = log as any;
+            const [from,, value] = parsedLog.args;
+            if (from.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && from.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
+              txList.push({
+                hash: parsedLog.transactionHash,
+                type: "Receive",
+                token: "MYC",
+                amount: formatEther(value),
+                otherAddress: from,
+                blockNumber: parsedLog.blockNumber,
+              });
+            }
           }
-        }
 
-        const onyxIncoming = await onyxContract.queryFilter(
-          onyxContract.filters.Transfer(null, activeAddress),
-          startBlock,
-          currentBlock
-        );
-        for (const log of onyxIncoming) {
-          const parsedLog = log as any;
-          const [from,, value] = parsedLog.args;
-          if (from.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && from.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
-            txList.push({
-              hash: parsedLog.transactionHash,
-              type: "Receive",
-              token: "ONYX",
-              amount: formatEther(value),
-              otherAddress: from,
-              blockNumber: parsedLog.blockNumber,
-            });
+          // ONYX Transfers (Send/Receive)
+          const onyxOutgoing = await onyxContract.queryFilter(
+            onyxContract.filters.Transfer(activeAddress, null),
+            startBlock,
+            currentBlock
+          );
+          for (const log of onyxOutgoing) {
+            const parsedLog = log as any;
+            const [, to, value] = parsedLog.args;
+            if (to.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && to.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
+              txList.push({
+                hash: parsedLog.transactionHash,
+                type: "Send",
+                token: "ONYX",
+                amount: formatEther(value),
+                otherAddress: to,
+                blockNumber: parsedLog.blockNumber,
+              });
+            }
+          }
+
+          const onyxIncoming = await onyxContract.queryFilter(
+            onyxContract.filters.Transfer(null, activeAddress),
+            startBlock,
+            currentBlock
+          );
+          for (const log of onyxIncoming) {
+            const parsedLog = log as any;
+            const [from,, value] = parsedLog.args;
+            if (from.toLowerCase() !== CONTRACT_ADDRESSES.SimpleSwap.toLowerCase() && from.toLowerCase() !== CONTRACT_ADDRESSES.Faucet.toLowerCase()) {
+              txList.push({
+                hash: parsedLog.transactionHash,
+                type: "Receive",
+                token: "ONYX",
+                amount: formatEther(value),
+                otherAddress: from,
+                blockNumber: parsedLog.blockNumber,
+              });
+            }
           }
         }
 
@@ -394,7 +439,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, [address, provider, walletType, signer, contractConfigured, disconnectWallet, rpcIndex]);
+  }, [address, provider, walletType, signer, contractConfigured, disconnectWallet, rpcIndex, isAuthenticated, token]);
 
   useEffect(() => {
     if (address && provider) {
@@ -402,7 +447,31 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [address, provider, refreshState]);
 
-  const generateNewWallet = async (password: string) => {
+  const cacheTransaction = useCallback(async (txData: {
+    hash: string;
+    type: "Send" | "Receive" | "Swap" | "Faucet";
+    token: string;
+    amount: string;
+    otherAddress?: string;
+    blockNumber: number;
+    timestamp?: number;
+  }) => {
+    if (!token) return;
+    try {
+      await fetch("http://localhost:5000/api/transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(txData)
+      });
+    } catch (e) {
+      console.error("Failed to cache transaction to database:", e);
+    }
+  }, [token]);
+
+  const generateNewWallet = async (usernameInput: string, password: string) => {
     disconnectWallet();
     const randomWallet = Wallet.createRandom();
     const walletMnemonic = randomWallet.mnemonic?.phrase || null;
@@ -412,7 +481,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         JSON.stringify({ mnemonic: walletMnemonic, privateKey: randomWallet.privateKey }),
         password
       );
-      localStorage.setItem("mycoin_encrypted_wallet", encrypted);
+
+      // Register with MongoDB backend
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to register wallet on database.");
+      }
+
+      const data = await res.json();
+
+      localStorage.setItem("onyx_jwt_token", data.token);
+      localStorage.setItem("onyx_username", data.username);
+      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+
+      setToken(data.token);
+      setUsername(data.username);
+      setIsAuthenticated(true);
       setHasSavedWallet(true);
       
       setMnemonic(walletMnemonic);
@@ -427,7 +517,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const importWalletFromMnemonic = async (phrase: string, password: string): Promise<boolean> => {
+  const importWalletFromMnemonic = async (usernameInput: string, phrase: string, password: string): Promise<boolean> => {
     try {
       disconnectWallet();
       const mn = Mnemonic.fromPhrase(phrase.trim());
@@ -437,7 +527,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         JSON.stringify({ mnemonic: phrase.trim(), privateKey: node.privateKey }),
         password
       );
-      localStorage.setItem("mycoin_encrypted_wallet", encrypted);
+
+      // Register with backend
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to import wallet on database.");
+      }
+
+      const data = await res.json();
+
+      localStorage.setItem("onyx_jwt_token", data.token);
+      localStorage.setItem("onyx_username", data.username);
+      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+
+      setToken(data.token);
+      setUsername(data.username);
+      setIsAuthenticated(true);
       setHasSavedWallet(true);
 
       setMnemonic(phrase.trim());
@@ -450,12 +561,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSigner(new Wallet(node.privateKey, readProvider));
       return true;
     } catch (e) {
-      console.error("Invalid mnemonic phrase", e);
+      console.error("Invalid mnemonic phrase or registration failed", e);
       return false;
     }
   };
 
-  const importWalletFromPrivateKey = async (pk: string, password: string): Promise<boolean> => {
+  const importWalletFromPrivateKey = async (usernameInput: string, pk: string, password: string): Promise<boolean> => {
     try {
       disconnectWallet();
       const formattedPk = pk.trim().startsWith("0x") ? pk.trim() : `0x${pk.trim()}`;
@@ -465,7 +576,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         JSON.stringify({ privateKey: formattedPk }),
         password
       );
-      localStorage.setItem("mycoin_encrypted_wallet", encrypted);
+
+      // Register with backend
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to import wallet on database.");
+      }
+
+      const data = await res.json();
+
+      localStorage.setItem("onyx_jwt_token", data.token);
+      localStorage.setItem("onyx_username", data.username);
+      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+
+      setToken(data.token);
+      setUsername(data.username);
+      setIsAuthenticated(true);
       setHasSavedWallet(true);
 
       setPrivateKey(formattedPk);
@@ -477,13 +609,71 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSigner(new Wallet(formattedPk, readProvider));
       return true;
     } catch (e) {
-      console.error("Invalid private key", e);
+      console.error("Invalid private key or registration failed", e);
+      return false;
+    }
+  };
+
+  const loginUser = async (usernameInput: string, password: string): Promise<boolean> => {
+    try {
+      disconnectWallet();
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: usernameInput, password })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to log in.");
+      }
+
+      const data = await res.json();
+
+      localStorage.setItem("onyx_jwt_token", data.token);
+      localStorage.setItem("onyx_username", data.username);
+      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+
+      setToken(data.token);
+      setUsername(data.username);
+      setIsAuthenticated(true);
+      setHasSavedWallet(true);
+
+      // Decrypt credentials
+      const decrypted = await decryptData(data.encryptedWallet, password);
+      const { mnemonic: savedMnemonic, privateKey: savedPk } = JSON.parse(decrypted);
+
+      if (savedMnemonic) {
+        const mn = Mnemonic.fromPhrase(savedMnemonic);
+        const node = HDNodeWallet.fromMnemonic(mn);
+        setMnemonic(savedMnemonic);
+        setPrivateKey(node.privateKey);
+        setAddress(node.address);
+        
+        const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
+        setProvider(readProvider);
+        setSigner(new Wallet(node.privateKey, readProvider));
+      } else if (savedPk) {
+        const tempWallet = new Wallet(savedPk);
+        setPrivateKey(savedPk);
+        setAddress(tempWallet.address);
+
+        const readProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[rpcIndex]);
+        setProvider(readProvider);
+        setSigner(new Wallet(savedPk, readProvider));
+      }
+
+      setWalletType("in-memory");
+      setIsLocked(false);
+      return true;
+    } catch (err) {
+      console.error("Login failed:", err);
       return false;
     }
   };
 
   const unlockWallet = async (password: string): Promise<boolean> => {
-    const saved = localStorage.getItem("mycoin_encrypted_wallet");
+    const saved = localStorage.getItem("onyx_encrypted_wallet");
     if (!saved) return false;
     try {
       const decrypted = await decryptData(saved, password);
@@ -588,31 +778,61 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const sendTokens = async (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "USDC" | "ONYX") => {
     if (!signer) throw new Error("Wallet not connected");
 
+    let tx: ethers.TransactionResponse;
+
     if (tokenSymbol === "ETH") {
-      const tx = await signer.sendTransaction({
+      tx = await signer.sendTransaction({
         to,
         value: parseEther(amount),
       });
-      return tx;
     } else if (tokenSymbol === "MYC") {
       const mycContract = new Contract(CONTRACT_ADDRESSES.MyCoin, MYCOIN_ABI, signer);
-      const tx = await mycContract.transfer(to, parseEther(amount));
-      return tx;
+      tx = await mycContract.transfer(to, parseEther(amount));
     } else if (tokenSymbol === "ONYX") {
       const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, MYCOIN_ABI, signer);
-      const tx = await onyxContract.transfer(to, parseEther(amount));
-      return tx;
+      tx = await onyxContract.transfer(to, parseEther(amount));
     } else {
       const usdcContract = new Contract(CONTRACT_ADDRESSES.MockUSDC, MOCKUSDC_ABI, signer);
-      const tx = await usdcContract.transfer(to, parseUnits(amount, 6));
-      return tx;
+      tx = await usdcContract.transfer(to, parseUnits(amount, 6));
     }
+
+    tx.wait().then(async (receipt: any) => {
+      if (receipt) {
+        await cacheTransaction({
+          hash: tx.hash,
+          type: "Send",
+          token: tokenSymbol,
+          amount,
+          otherAddress: to,
+          blockNumber: receipt.blockNumber,
+          timestamp: Date.now()
+        });
+        refreshState();
+      }
+    }).catch(console.error);
+
+    return tx;
   };
 
   const claimFaucet = async () => {
     if (!signer) throw new Error("Wallet not connected");
     const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, signer);
     const tx = await faucetContract.requestTokens();
+
+    tx.wait().then(async (receipt: any) => {
+      if (receipt) {
+        await cacheTransaction({
+          hash: tx.hash,
+          type: "Faucet",
+          token: "MYC+USDC+ONYX",
+          amount: "100+100+100",
+          blockNumber: receipt.blockNumber,
+          timestamp: Date.now()
+        });
+        refreshState();
+      }
+    }).catch(console.error);
+
     return tx;
   };
 
@@ -664,6 +884,21 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // 2. Execute swap
     const tx = await swapContract.swap(tokenInAddress, rawAmountIn, rawMinAmountOut);
+
+    tx.wait().then(async (receipt: any) => {
+      if (receipt) {
+        await cacheTransaction({
+          hash: tx.hash,
+          type: "Swap",
+          token: `${tokenInSymbol} → ${tokenOutSymbol}`,
+          amount: `${amountIn} → ${minAmountOut}`,
+          blockNumber: receipt.blockNumber,
+          timestamp: Date.now()
+        });
+        refreshState();
+      }
+    }).catch(console.error);
+
     return tx;
   };
 
@@ -723,9 +958,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         contractConfigured,
         isLocked,
         hasSavedWallet,
+        isAuthenticated,
+        username,
         generateNewWallet,
         importWalletFromMnemonic,
         importWalletFromPrivateKey,
+        loginUser,
         connectMetaMask,
         disconnectWallet,
         lockWallet,

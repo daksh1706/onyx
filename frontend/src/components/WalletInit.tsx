@@ -7,13 +7,15 @@ export const WalletInit: React.FC = () => {
     generateNewWallet,
     importWalletFromMnemonic,
     importWalletFromPrivateKey,
+    loginUser,
     connectMetaMask,
     mnemonic,
     privateKey,
     address,
   } = useWallet();
 
-  const [activeTab, setActiveTab] = useState<"create" | "import-seed" | "import-key" | "metamask">("create");
+  const [activeTab, setActiveTab] = useState<"login" | "create" | "import-seed" | "import-key" | "metamask">("login");
+  const [usernameInput, setUsernameInput] = useState<string>("");
   const [seedPhrase, setSeedPhrase] = useState<string>("");
   const [privKey, setPrivKey] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -38,15 +40,44 @@ export const WalletInit: React.FC = () => {
     return true;
   };
 
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!usernameInput.trim()) {
+      setError("Username cannot be empty");
+      return;
+    }
+    if (!password) {
+      setError("Password cannot be empty");
+      return;
+    }
+    setSetupLoading(true);
+    try {
+      const success = await loginUser(usernameInput, password);
+      if (!success) {
+        setError("Login failed. Verify your username and password, or ensure backend is running.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to log in.");
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
   const handleGenerateWallet = async () => {
     setError(null);
+    if (!usernameInput.trim()) {
+      setError("Username is required to save credentials.");
+      return;
+    }
     if (!validatePassword()) return;
     setSetupLoading(true);
     try {
-      await generateNewWallet(password);
-    } catch (err) {
+      await generateNewWallet(usernameInput, password);
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to generate wallet.");
+      setError(err.message || "Failed to generate wallet.");
     } finally {
       setSetupLoading(false);
     }
@@ -55,6 +86,10 @@ export const WalletInit: React.FC = () => {
   const handleImportMnemonicSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!usernameInput.trim()) {
+      setError("Username is required to save credentials.");
+      return;
+    }
     if (!seedPhrase.trim()) {
       setError("Seed phrase cannot be empty");
       return;
@@ -62,7 +97,7 @@ export const WalletInit: React.FC = () => {
     if (!validatePassword()) return;
     setSetupLoading(true);
     try {
-      const success = await importWalletFromMnemonic(seedPhrase, password);
+      const success = await importWalletFromMnemonic(usernameInput, seedPhrase, password);
       if (!success) {
         setError("Invalid seed phrase. Make sure it has 12 or 24 words and is formatted correctly.");
       }
@@ -77,6 +112,10 @@ export const WalletInit: React.FC = () => {
   const handleImportPrivateKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!usernameInput.trim()) {
+      setError("Username is required to save credentials.");
+      return;
+    }
     if (!privKey.trim()) {
       setError("Private key cannot be empty");
       return;
@@ -84,7 +123,7 @@ export const WalletInit: React.FC = () => {
     if (!validatePassword()) return;
     setSetupLoading(true);
     try {
-      const success = await importWalletFromPrivateKey(privKey, password);
+      const success = await importWalletFromPrivateKey(usernameInput, privKey, password);
       if (!success) {
         setError("Invalid private key. Make sure it is a valid hex string.");
       }
@@ -96,11 +135,29 @@ export const WalletInit: React.FC = () => {
     }
   };
 
+  const renderUsernameInput = () => (
+    <div className="form-group">
+      <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <Key size={12} />
+        Username
+      </label>
+      <input
+        type="text"
+        className="form-input"
+        placeholder="Enter username..."
+        value={usernameInput}
+        onChange={(e) => setUsernameInput(e.target.value)}
+        disabled={setupLoading}
+        required
+      />
+    </div>
+  );
+
   const renderPasswordInput = () => (
     <div className="form-group" style={{ position: "relative" }}>
       <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
         <KeyRound size={12} />
-        Set Wallet Password (Min 6 chars)
+        Wallet Password (Min 6 chars)
       </label>
       <input
         type={showWalletPassword ? "text" : "password"}
@@ -165,9 +222,10 @@ export const WalletInit: React.FC = () => {
         borderRadius: "12px",
         padding: "4px",
         marginBottom: "30px",
-        gap: "4px"
+        gap: "4px",
+        flexWrap: "wrap"
       }}>
-        {(["create", "import-seed", "import-key", "metamask"] as const).map((tab) => (
+        {(["login", "create", "import-seed", "import-key", "metamask"] as const).map((tab) => (
           <button
             key={tab}
             className="btn"
@@ -184,14 +242,16 @@ export const WalletInit: React.FC = () => {
               padding: "10px 4px",
               fontSize: "13px",
               borderRadius: "10px",
-              boxShadow: "none"
+              boxShadow: "none",
+              minWidth: "90px"
             }}
           >
+            {tab === "login" && <Key size={14} style={{ marginRight: "4px" }} />}
             {tab === "create" && <PlusCircle size={14} style={{ marginRight: "4px" }} />}
             {tab === "import-seed" && <Import size={14} style={{ marginRight: "4px" }} />}
             {tab === "import-key" && <Key size={14} style={{ marginRight: "4px" }} />}
             {tab === "metamask" && <Layers size={14} style={{ marginRight: "4px" }} />}
-            {tab === "create" ? "Create Wallet" : tab === "import-seed" ? "Import Seed" : tab === "import-key" ? "Import Key" : "MetaMask"}
+            {tab === "login" ? "Login" : tab === "create" ? "Create Wallet" : tab === "import-seed" ? "Import Seed" : tab === "import-key" ? "Import Key" : "MetaMask"}
           </button>
         ))}
       </div>
@@ -212,21 +272,38 @@ export const WalletInit: React.FC = () => {
       )}
 
       {/* Tab Panel Content */}
+      {activeTab === "login" && (
+        <form onSubmit={handleLoginSubmit} className="fade-in">
+          <p style={{ marginBottom: "20px", fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
+            Enter username and password to load your encrypted credentials from MongoDB.
+          </p>
+          {renderUsernameInput()}
+          {renderPasswordInput()}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: "100%", marginTop: "10px" }}
+            disabled={setupLoading || !usernameInput || !password}
+          >
+            {setupLoading ? "Logging In..." : "Log In & Sync"}
+          </button>
+        </form>
+      )}
+
       {activeTab === "create" && (
         <div className="fade-in" style={{ textAlign: "left" }}>
           {!address ? (
             <div>
               <p style={{ marginBottom: "20px", fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
-                Derive a brand new client-side wallet from a BIP-39 mnemonic seed phrase.
+                Derive a brand new client-side wallet and save it to MongoDB.
               </p>
-              
+              {renderUsernameInput()}
               {renderPasswordInput()}
-              
               <button
                 className="btn btn-primary"
                 onClick={handleGenerateWallet}
                 style={{ width: "100%", marginTop: "10px" }}
-                disabled={setupLoading || !password}
+                disabled={setupLoading || !usernameInput || !password}
               >
                 {setupLoading ? "Generating..." : "Generate New Wallet"}
               </button>
@@ -312,6 +389,7 @@ export const WalletInit: React.FC = () => {
 
       {activeTab === "import-seed" && (
         <form onSubmit={handleImportMnemonicSubmit} className="fade-in">
+          {renderUsernameInput()}
           <div className="form-group">
             <label className="form-label">Enter 12 or 24-Word Seed Phrase</label>
             <textarea
@@ -332,7 +410,7 @@ export const WalletInit: React.FC = () => {
             type="submit"
             className="btn btn-primary"
             style={{ width: "100%", marginTop: "10px" }}
-            disabled={setupLoading || !seedPhrase || !password}
+            disabled={setupLoading || !usernameInput || !seedPhrase || !password}
           >
             {setupLoading ? "Importing..." : "Import Wallet"}
           </button>
@@ -341,6 +419,7 @@ export const WalletInit: React.FC = () => {
 
       {activeTab === "import-key" && (
         <form onSubmit={handleImportPrivateKeySubmit} className="fade-in">
+          {renderUsernameInput()}
           <div className="form-group">
             <label className="form-label">Enter Private Key (Hex format)</label>
             <div style={{ position: "relative", marginBottom: "16px" }}>
@@ -379,7 +458,7 @@ export const WalletInit: React.FC = () => {
             type="submit"
             className="btn btn-primary"
             style={{ width: "100%", marginTop: "10px" }}
-            disabled={setupLoading || !privKey || !password}
+            disabled={setupLoading || !usernameInput || !privKey || !password}
           >
             {setupLoading ? "Importing..." : "Import Private Key"}
           </button>
