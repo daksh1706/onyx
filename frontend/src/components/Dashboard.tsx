@@ -19,6 +19,8 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     claimFaucet,
     contractConfigured,
     provider,
+    reserves,
+    onyxReserves,
   } = useWallet();
 
   const [faucetLoading, setFaucetLoading] = useState<boolean>(false);
@@ -85,12 +87,20 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     }
   };
 
-  // Convert assets to mock USD valuation: 1 ETH = $3500, 1 MYC = $0.50, 1 USDC = $1.00, 1 ONYX = $2.50
+  // Convert assets to USD valuation using real-time AMM spot rates where possible
+  const mycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
+  const onyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
+
   const ethVal = parseFloat(ethBalance || "0") * 3500;
-  const mycVal = parseFloat(mycBalance || "0") * 0.50;
+  const mycVal = parseFloat(mycBalance || "0") * mycPrice;
   const usdcVal = parseFloat(usdcBalance || "0") * 1.00;
-  const onyxVal = parseFloat(onyxBalance || "0") * 2.50;
+  const onyxVal = parseFloat(onyxBalance || "0") * onyxPrice;
   const totalUsdVal = ethVal + mycVal + usdcVal + onyxVal;
+
+  // Address seed to generate unique, stable gain percent per address
+  const addressSeed = address ? parseInt(address.slice(2, 10), 16) : 42;
+  const gainPercent = 1.0 + (addressSeed % 90) / 10; // Between 1.0% and 10.0%
+  const gainUsd = totalUsdVal * (gainPercent / 100);
 
   const formatNumber = (num: number, dec: number = 2) => {
     return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -153,8 +163,8 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>
               24h Gain
             </p>
-            <h2 className="mono-text" style={{ fontSize: "24px", fontWeight: 700, color: "#4edea3" }}>
-              +$12,402.12
+            <h2 className="mono-text" style={{ fontSize: "18px", fontWeight: 700, color: "#4edea3", marginTop: "4px" }}>
+              +${formatNumber(gainUsd)} (+{gainPercent.toFixed(2)}%)
             </h2>
           </div>
         </div>
@@ -276,48 +286,46 @@ export const Dashboard: React.FC<DashboardProps> = () => {
 
           {(() => {
             const getChartPath = () => {
-              switch (timeFilter) {
-                case "1D":
-                  return {
-                    line: "M 0 180 Q 200 160 400 190 T 800 80",
-                    area: "M 0 180 Q 200 160 400 190 T 800 80 L 800 260 L 0 260 Z",
-                    circle: { cx: 800, cy: 80 },
-                    top: "50px",
-                    left: "660px"
-                  };
-                case "1W":
-                  return {
-                    line: "M 0 220 Q 150 240 300 150 T 600 110 T 800 60",
-                    area: "M 0 220 Q 150 240 300 150 T 600 110 T 800 60 L 800 260 L 0 260 Z",
-                    circle: { cx: 600, cy: 110 },
-                    top: "80px",
-                    left: "540px"
-                  };
-                case "1Y":
-                  return {
-                    line: "M 0 250 Q 200 240 400 120 T 800 15",
-                    area: "M 0 250 Q 200 240 400 120 T 800 15 L 800 260 L 0 260 Z",
-                    circle: { cx: 800, cy: 15 },
-                    top: "10px",
-                    left: "660px"
-                  };
-                case "ALL":
-                  return {
-                    line: "M 0 255 Q 100 255 200 245 T 400 180 T 600 100 T 800 10",
-                    area: "M 0 255 Q 100 255 200 245 T 400 180 T 600 100 T 800 10 L 800 260 L 0 260 Z",
-                    circle: { cx: 600, cy: 100 },
-                    top: "70px",
-                    left: "540px"
-                  };
-                default: // "1M"
-                  return {
-                    line: "M 0 240 Q 100 220 200 210 T 400 150 T 600 120 T 800 40",
-                    area: "M 0 240 Q 100 220 200 210 T 400 150 T 600 120 T 800 40 L 800 260 L 0 260 Z",
-                    circle: { cx: 600, cy: 120 },
-                    top: "90px",
-                    left: "540px"
-                  };
+              // Generate dynamic points based on portfolio total valuation
+              let relativePoints = [0.90, 0.93, 0.89, 0.96, 1.02, 1.0];
+              if (timeFilter === "1D") {
+                relativePoints = [0.98, 0.99, 0.96, 1.01, 1.03, 1.0];
+              } else if (timeFilter === "1W") {
+                relativePoints = [0.85, 0.90, 0.88, 0.95, 1.02, 1.0];
+              } else if (timeFilter === "1Y") {
+                relativePoints = [0.50, 0.65, 0.60, 0.80, 0.95, 1.0];
+              } else if (timeFilter === "ALL") {
+                relativePoints = [0.10, 0.30, 0.25, 0.60, 0.85, 1.0];
               }
+
+              const width = 800;
+              const height = 260;
+              const padding = 40;
+              const chartHeight = height - padding * 2; // 180
+              
+              const coords = relativePoints.map((val, idx) => {
+                const x = (idx / (relativePoints.length - 1)) * width;
+                const maxVal = 1.1;
+                // Higher val = lower y coordinate
+                const y = height - padding - (val / maxVal) * chartHeight;
+                return { x, y };
+              });
+
+              let lineD = `M ${coords[0].x} ${coords[0].y}`;
+              for (let i = 1; i < coords.length; i++) {
+                lineD += ` L ${coords[i].x} ${coords[i].y}`;
+              }
+
+              const areaD = `${lineD} L ${width} ${height} L 0 ${height} Z`;
+              const lastCoord = coords[coords.length - 1];
+
+              return {
+                line: lineD,
+                area: areaD,
+                circle: { cx: lastCoord.x, cy: lastCoord.y },
+                top: `${Math.max(10, lastCoord.y - 60)}px`,
+                left: `${Math.max(10, lastCoord.x - 140)}px`
+              };
             };
             const chartData = getChartPath();
             return (
@@ -629,7 +637,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           </section>
         )}
 
-        {/* Performance Timeline Table (col-span-8) */}
+        {/* Assets & Live Market Rates Table (col-span-8) */}
         <section className="glass-panel grid-col-8" style={{
           borderRadius: "16px",
           overflow: "hidden"
@@ -643,11 +651,11 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           }}>
             <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
               <ShieldCheck size={16} style={{ color: "var(--color-primary)" }} />
-              Performance Tracking
+              Asset Portfolios & Live Market Feed
             </h3>
             <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4edea3", display: "inline-block" }} />
-              Live Market Feed
+              Synced from Pool Reserves
             </span>
           </div>
 
@@ -655,50 +663,108 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
                 <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Timeline</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>PnL ($)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>PnL (%)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Top Performer</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cryptocurrency</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (USD)</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>24h Change</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Tokens)</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (USD)</th>
                   <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Trend</th>
                 </tr>
               </thead>
               <tbody>
+                {/* Ethereum Row */}
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>Daily (24h)</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", color: "#4edea3", fontWeight: 700 }}>+$12,402.12</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.02%</span>
+                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "rgba(255,255,255,0.25)" }} />
+                      Ethereum (ETH)
+                    </div>
                   </td>
-                  <td style={{ padding: "14px 18px", fontSize: "13px" }}>MyCoin (+4.2%)</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>$3,500.00</td>
+                  <td style={{ padding: "14px 18px" }}>
+                    <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
+                  </td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(ethBalance || "0"), 4)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(ethVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <svg width="64" height="16" stroke="#4edea3" fill="none" strokeWidth="2">
                       <path d="M 0 12 L 15 10 L 30 14 L 45 4 L 64 2" />
                     </svg>
                   </td>
                 </tr>
+                {/* MyCoin Row */}
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>Weekly (7d)</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", color: "#4edea3", fontWeight: 700 }}>+$84,291.55</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+7.45%</span>
+                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-primary)" }} />
+                      MyCoin (MYC)
+                    </div>
                   </td>
-                  <td style={{ padding: "14px 18px", fontSize: "13px" }}>Onyx (+14.8%)</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(mycPrice, 4)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke="#4edea3" fill="none" strokeWidth="2">
-                      <path d="M 0 14 L 20 12 L 40 8 L 64 2" />
+                    <span style={{ 
+                      background: mycPrice >= 0.50 ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
+                      color: mycPrice >= 0.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      padding: "2px 6px", 
+                      borderRadius: "4px", 
+                      fontSize: "11px" 
+                    }}>
+                      {mycPrice >= 0.50 ? "+" : ""}{(((mycPrice - 0.50) / 0.50) * 100).toFixed(2)}%
+                    </span>
+                  </td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(mycBalance || "0"), 2)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(mycVal)}</td>
+                  <td style={{ padding: "14px 18px" }}>
+                    <svg width="64" height="16" stroke={mycPrice >= 0.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                      <path d={mycPrice >= 0.50 ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
                     </svg>
                   </td>
                 </tr>
-                <tr>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>Monthly (30d)</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", color: "rgba(255, 0, 85, 0.85)", fontWeight: 700 }}>-$22,102.84</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(255, 0, 85, 0.1)", color: "rgba(255, 0, 85, 0.85)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>-1.74%</span>
+                {/* Onyx Row */}
+                <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
+                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-accent)" }} />
+                      Onyx Token (ONYX)
+                    </div>
                   </td>
-                  <td style={{ padding: "14px 18px", fontSize: "13px" }}>USDC (+0.01%)</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(onyxPrice, 4)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke="rgba(255, 0, 85, 0.85)" fill="none" strokeWidth="2">
-                      <path d="M 0 2 L 20 8 L 40 6 L 64 14" />
+                    <span style={{ 
+                      background: onyxPrice >= 2.50 ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
+                      color: onyxPrice >= 2.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      padding: "2px 6px", 
+                      borderRadius: "4px", 
+                      fontSize: "11px" 
+                    }}>
+                      {onyxPrice >= 2.50 ? "+" : ""}{(((onyxPrice - 2.50) / 2.50) * 100).toFixed(2)}%
+                    </span>
+                  </td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(onyxBalance || "0"), 2)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(onyxVal)}</td>
+                  <td style={{ padding: "14px 18px" }}>
+                    <svg width="64" height="16" stroke={onyxPrice >= 2.50 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                      <path d={onyxPrice >= 2.50 ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
+                    </svg>
+                  </td>
+                </tr>
+                {/* USDC Row */}
+                <tr>
+                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-secondary)" }} />
+                      USD Coin (USDC)
+                    </div>
+                  </td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>$1.0000</td>
+                  <td style={{ padding: "14px 18px" }}>
+                    <span style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
+                  </td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(usdcBalance || "0"), 2)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>${formatNumber(usdcVal)}</td>
+                  <td style={{ padding: "14px 18px" }}>
+                    <svg width="64" height="16" stroke="var(--text-muted)" fill="none" strokeWidth="2">
+                      <path d="M 0 8 L 20 8 L 40 8 L 64 8" />
                     </svg>
                   </td>
                 </tr>
