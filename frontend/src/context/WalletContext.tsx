@@ -249,7 +249,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (isAuthenticated && token) {
           try {
-            const res = await fetch("http://localhost:5000/api/transactions", {
+            const res = await fetch("http://localhost:5001/api/transactions", {
               headers: {
                 "Authorization": `Bearer ${token}`
               }
@@ -458,7 +458,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }) => {
     if (!token) return;
     try {
-      await fetch("http://localhost:5000/api/transactions", {
+      await fetch("http://localhost:5001/api/transactions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -483,7 +483,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       );
 
       // Register with MongoDB backend
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+      const res = await fetch("http://localhost:5001/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
@@ -529,7 +529,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       );
 
       // Register with backend
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+      const res = await fetch("http://localhost:5001/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
@@ -578,7 +578,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       );
 
       // Register with backend
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+      const res = await fetch("http://localhost:5001/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: usernameInput, password, encryptedWallet: encrypted })
@@ -617,7 +617,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const loginUser = async (usernameInput: string, password: string): Promise<boolean> => {
     try {
       disconnectWallet();
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch("http://localhost:5001/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: usernameInput, password })
