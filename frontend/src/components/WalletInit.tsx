@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useWallet, verifyBiometrics } from "../context/WalletContext";
-import { Key, PlusCircle, ShieldAlert, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Key, PlusCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 
 export const WalletInit: React.FC = () => {
   const {
@@ -212,26 +212,6 @@ export const WalletInit: React.FC = () => {
         <p>Encrypt, store, and access your wallet credentials securely.</p>
       </div>
 
-      {/* Warning Box */}
-      <div style={{
-        background: "rgba(59, 130, 246, 0.05)",
-        border: "1px solid rgba(59, 130, 246, 0.15)",
-        borderRadius: "12px",
-        padding: "16px",
-        display: "flex",
-        gap: "12px",
-        marginBottom: "24px"
-      }}>
-        <ShieldAlert size={24} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
-        <div>
-          <h4 style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>Local Wallet Session Security</h4>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.4" }}>
-            Keys are encrypted using PBKDF2 + AES-GCM and stored in localStorage. 
-            Refreshing or re-entering the page locks your wallet for security. 
-            Never paste mainnet keys or real money keys here!
-          </p>
-        </div>
-      </div>
 
       {/* Tab Selectors */}
       <div style={{
@@ -289,9 +269,6 @@ export const WalletInit: React.FC = () => {
       {/* Tab Panel Content */}
       {activeTab === "login" && (
         <form onSubmit={handleLoginSubmit} className="fade-in">
-          <p style={{ marginBottom: "20px", fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
-            Enter username and password to load your encrypted credentials from MongoDB.
-          </p>
           {renderUsernameInput()}
           {renderPasswordInput()}
           <button
