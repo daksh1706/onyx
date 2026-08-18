@@ -22,7 +22,8 @@ const getSecureItem = async (key: string): Promise<string | null> => {
     const result = await SecureStoragePlugin.get({ key });
     return result.value;
   } catch (e) {
-    return null;
+    console.warn("SecureStoragePlugin.get failed, falling back to localStorage", e);
+    return localStorage.getItem(key);
   }
 };
 
@@ -31,7 +32,12 @@ const setSecureItem = async (key: string, value: string): Promise<void> => {
     localStorage.setItem(key, value);
     return;
   }
-  await SecureStoragePlugin.set({ key, value });
+  try {
+    await SecureStoragePlugin.set({ key, value });
+  } catch (e) {
+    console.warn("SecureStoragePlugin.set failed, falling back to localStorage", e);
+    localStorage.setItem(key, value);
+  }
 };
 
 const removeSecureItem = async (key: string): Promise<void> => {
@@ -44,6 +50,7 @@ const removeSecureItem = async (key: string): Promise<void> => {
   } catch (e) {
     // Ignore error if key doesn't exist
   }
+  localStorage.removeItem(key);
 };
 
 // Biometric Prompt Gater
