@@ -326,19 +326,19 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               {/* Legends list */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8c8d9e" }} />
+                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
                   <span>ETH ({ethPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-primary)" }} />
+                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
                   <span>MYC ({mycPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-surface2)" }} />
+                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
                   <span>INR ({inrPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-accent)" }} />
+                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
                   <span>ONYX ({onyxPercent.toFixed(0)}%)</span>
                 </div>
               </div>
@@ -411,7 +411,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               Asset Portfolios & Live Market Feed
             </h3>
             <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
+              <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
               Synced from Pool Reserves
             </span>
           </div>
@@ -433,7 +433,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8c8d9e" }} />
+                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
                       Ethereum (ETH)
                     </div>
                   </td>
@@ -453,7 +453,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-primary)" }} />
+                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
                       MyCoin (MYC)
                     </div>
                   </td>
@@ -481,7 +481,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-accent)" }} />
+                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
                       Onyx Token (ONYX)
                     </div>
                   </td>
@@ -509,7 +509,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <tr>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-surface2)" }} />
+                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
                       Indian Rupee (INR)
                     </div>
                   </td>
@@ -550,7 +550,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           borderRadius: "100px",
           fontSize: "12px"
         }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
+          <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
           <span style={{ fontWeight: 600 }}>Ethereum Sepolia</span>
           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>12ms</span>
         </div>
@@ -565,7 +565,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           fontSize: "12px",
           opacity: 0.6
         }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
+          <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
           <span style={{ fontWeight: 600 }}>Polygon Amoy</span>
           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>24ms</span>
         </div>
