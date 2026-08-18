@@ -294,7 +294,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   color: "var(--text-muted)",
                   fontSize: "13px"
                 }}>
-                  No assets in wallet. Use the Developer Faucet card below to claim test crypto.
+                  No assets in wallet. Use the Developer Faucet card below to claim test tokens.
                 </div>
               ) : (
                 <div style={{ width: "100%", overflow: "hidden" }}>
@@ -416,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
               Developer Sandbox Faucet
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.5", marginBottom: "20px" }}>
-              Claim 100 test MYC, 100 test INR, and 100 test ONYX crypto once every 24 hours to test send and swap features.
+              Claim 100 test MYC, 100 test INR, and 100 test ONYX tokens once every 24 hours to test send and swap features.
             </p>
 
             {!contractConfigured ? (
@@ -432,7 +432,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   disabled={faucetLoading || cooldownLeft > 0}
                   style={{ width: "100%", padding: "14px", fontWeight: 700 }}
                 >
-                  {faucetLoading ? "Requesting Crypto..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Crypto"}
+                  {faucetLoading ? "Requesting Tokens..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
                 </button>
 
                 {faucetMessage && (
@@ -482,7 +482,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cryptocurrency</th>
                     <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (INR)</th>
                     <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>24h Change</th>
-                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Crypto)</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Tokens)</th>
                     <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (INR)</th>
                     <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Trend</th>
                   </tr>
@@ -690,7 +690,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
           {isWalletEmpty ? (
             <div className="mobile-chart-empty" style={{ zIndex: 10 }}>
-              No assets in wallet. Use the Developer Faucet action below to claim test crypto.
+              No assets in wallet. Use the Developer Faucet action below to claim test tokens.
             </div>
           ) : mobileChartTab === "performance" ? (
             <>
@@ -815,10 +815,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         <section className="glass-panel" style={{ borderRadius: "20px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Clock size={16} style={{ color: "var(--color-primary)" }} />
-            <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>Sandbox Crypto Faucet</h4>
+            <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>Sandbox Token Faucet</h4>
           </div>
           <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
-            Claim 100 free test crypto once every 24 hours.
+            Claim 100 free test tokens once every 24 hours.
           </p>
 
           {!contractConfigured ? (
@@ -834,7 +834,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 disabled={faucetLoading || cooldownLeft > 0}
                 style={{ width: "100%", padding: "10px", fontSize: "12px", fontWeight: 700 }}
               >
-                {faucetLoading ? "Requesting..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Crypto"}
+                {faucetLoading ? "Requesting..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
               </button>
 
               {faucetMessage && (

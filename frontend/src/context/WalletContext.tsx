@@ -1240,7 +1240,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const claimFaucet = async () => {
-    const verified = await verifyBiometrics("Confirm claiming free test crypto from Faucet");
+    const verified = await verifyBiometrics("Confirm claiming test tokens from Faucet");
     if (!verified) throw new Error("Biometric authorization required");
 
     if (!address) throw new Error("Wallet not connected");
