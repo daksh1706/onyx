@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { ethers, Contract, parseUnits, formatUnits } from "ethers";
-import { CONTRACT_ADDRESSES, SIMPLESWAP_ABI, MYCOIN_ABI, MOCKUSDC_ABI } from "../constants/contracts";
+import { CONTRACT_ADDRESSES, SIMPLESWAP_ABI, MYCOIN_ABI, MOCKINR_ABI } from "../constants/contracts";
 import { ArrowDown, AlertTriangle, Settings, CheckCircle2 } from "lucide-react";
 
 export const Swap: React.FC = () => {
   const {
     address,
     mycBalance,
-    usdcBalance,
+    inrBalance,
     onyxBalance,
     provider,
     signer,
@@ -16,11 +16,12 @@ export const Swap: React.FC = () => {
     swapTokens,
     reserves,
     onyxReserves,
+    mycOnyxReserves,
     refreshState,
   } = useWallet();
 
-  const [fromToken, setFromToken] = useState<"MYC" | "USDC" | "ONYX">("MYC");
-  const [toToken, setToToken] = useState<"MYC" | "USDC" | "ONYX">("USDC");
+  const [fromToken, setFromToken] = useState<"MYC" | "INR" | "ONYX">("MYC");
+  const [toToken, setToToken] = useState<"MYC" | "INR" | "ONYX">("INR");
   const [amountIn, setAmountIn] = useState<string>("");
   const [amountOut, setAmountOut] = useState<string>("");
   const [slippage, setSlippage] = useState<number>(0.5); // 0.5% default
@@ -38,24 +39,32 @@ export const Swap: React.FC = () => {
 
   // Check if direct pool exists
   const isValidPair =
-    (fromToken === "MYC" && toToken === "USDC") ||
-    (fromToken === "USDC" && toToken === "MYC") ||
-    (fromToken === "ONYX" && toToken === "USDC") ||
-    (fromToken === "USDC" && toToken === "ONYX");
+    (fromToken === "MYC" && toToken === "INR") ||
+    (fromToken === "INR" && toToken === "MYC") ||
+    (fromToken === "ONYX" && toToken === "INR") ||
+    (fromToken === "INR" && toToken === "ONYX") ||
+    (fromToken === "MYC" && toToken === "ONYX") ||
+    (fromToken === "ONYX" && toToken === "MYC");
 
   // Get active reserves based on selected tokens
   const getActiveReserves = (): { reserveIn: number; reserveOut: number } | null => {
-    if (fromToken === "MYC" && toToken === "USDC") {
+    if (fromToken === "MYC" && toToken === "INR") {
       return reserves ? { reserveIn: parseFloat(reserves.reserveA), reserveOut: parseFloat(reserves.reserveB) } : null;
     }
-    if (fromToken === "USDC" && toToken === "MYC") {
+    if (fromToken === "INR" && toToken === "MYC") {
       return reserves ? { reserveIn: parseFloat(reserves.reserveB), reserveOut: parseFloat(reserves.reserveA) } : null;
     }
-    if (fromToken === "ONYX" && toToken === "USDC") {
+    if (fromToken === "ONYX" && toToken === "INR") {
       return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveA), reserveOut: parseFloat(onyxReserves.reserveB) } : null;
     }
-    if (fromToken === "USDC" && toToken === "ONYX") {
+    if (fromToken === "INR" && toToken === "ONYX") {
       return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveB), reserveOut: parseFloat(onyxReserves.reserveA) } : null;
+    }
+    if (fromToken === "MYC" && toToken === "ONYX") {
+      return mycOnyxReserves ? { reserveIn: parseFloat(mycOnyxReserves.reserveA), reserveOut: parseFloat(mycOnyxReserves.reserveB) } : null;
+    }
+    if (fromToken === "ONYX" && toToken === "MYC") {
+      return mycOnyxReserves ? { reserveIn: parseFloat(mycOnyxReserves.reserveB), reserveOut: parseFloat(mycOnyxReserves.reserveA) } : null;
     }
     return null;
   };
@@ -113,8 +122,14 @@ export const Swap: React.FC = () => {
 
     setQuoteLoading(true);
     try {
+      const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
-      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContractAddress = isMycOnyxSwap 
+        ? CONTRACT_ADDRESSES.MycOnyxSwap 
+        : isOnyxSwap 
+          ? CONTRACT_ADDRESSES.OnyxSwap 
+          : CONTRACT_ADDRESSES.SimpleSwap;
+
       const swapContract = new Contract(swapContractAddress, SIMPLESWAP_ABI, provider);
 
       let tokenInAddress = "";
@@ -127,11 +142,11 @@ export const Swap: React.FC = () => {
         tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
         decimalsIn = 18;
       } else {
-        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
+        tokenInAddress = CONTRACT_ADDRESSES.MockINR;
         decimalsIn = 6;
       }
 
-      const decimalsOut = toToken === "USDC" ? 6 : 18;
+      const decimalsOut = toToken === "INR" ? 6 : 18;
 
       const rawIn = parseUnits(amountIn, decimalsIn);
       const rawOut = await swapContract.getAmountOut(tokenInAddress, rawIn);
@@ -164,8 +179,13 @@ export const Swap: React.FC = () => {
 
     setCheckingAllowance(true);
     try {
+      const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
-      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContractAddress = isMycOnyxSwap 
+        ? CONTRACT_ADDRESSES.MycOnyxSwap 
+        : isOnyxSwap 
+          ? CONTRACT_ADDRESSES.OnyxSwap 
+          : CONTRACT_ADDRESSES.SimpleSwap;
 
       let tokenInAddress = "";
       let tokenABI: any = MYCOIN_ABI;
@@ -180,8 +200,8 @@ export const Swap: React.FC = () => {
         tokenABI = MYCOIN_ABI;
         decimalsIn = 18;
       } else {
-        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
-        tokenABI = MOCKUSDC_ABI;
+        tokenInAddress = CONTRACT_ADDRESSES.MockINR;
+        tokenABI = MOCKINR_ABI;
         decimalsIn = 6;
       }
 
@@ -209,8 +229,13 @@ export const Swap: React.FC = () => {
     setSwapMessage(null);
 
     try {
+      const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
-      const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContractAddress = isMycOnyxSwap 
+        ? CONTRACT_ADDRESSES.MycOnyxSwap 
+        : isOnyxSwap 
+          ? CONTRACT_ADDRESSES.OnyxSwap 
+          : CONTRACT_ADDRESSES.SimpleSwap;
 
       let tokenInAddress = "";
       let tokenABI: any = MYCOIN_ABI;
@@ -222,8 +247,8 @@ export const Swap: React.FC = () => {
         tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
         tokenABI = MYCOIN_ABI;
       } else {
-        tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
-        tokenABI = MOCKUSDC_ABI;
+        tokenInAddress = CONTRACT_ADDRESSES.MockINR;
+        tokenABI = MOCKINR_ABI;
       }
 
       // 1. Handle ERC20 Approval if needed
@@ -245,7 +270,7 @@ export const Swap: React.FC = () => {
       setActionStep("swapping");
       setSwapMessage({ text: "Requesting swap signature...", error: false });
 
-      const decimalsOut = toToken === "USDC" ? 6 : 18;
+      const decimalsOut = toToken === "INR" ? 6 : 18;
 
       // Calculate minAmountOut based on slippage setting
       const outVal = parseFloat(amountOut);
@@ -283,13 +308,13 @@ export const Swap: React.FC = () => {
 
   const getFromBalance = () => {
     if (fromToken === "MYC") return mycBalance;
-    if (fromToken === "USDC") return usdcBalance;
+    if (fromToken === "INR") return inrBalance;
     return onyxBalance;
   };
 
   const getToBalance = () => {
     if (toToken === "MYC") return mycBalance;
-    if (toToken === "USDC") return usdcBalance;
+    if (toToken === "INR") return inrBalance;
     return onyxBalance;
   };
 
@@ -346,20 +371,20 @@ export const Swap: React.FC = () => {
             <div style={{ display: "flex", gap: "8px" }}>
               {[0.1, 0.5, 1.0, 2.0].map((val) => (
                 <button
-                  key={val}
-                  type="button"
-                  className="btn"
-                  onClick={() => setSlippage(val)}
-                  style={{
-                    flex: 1,
-                    background: slippage === val ? "rgba(0, 102, 255, 0.1)" : "rgba(0, 0, 0, 0.03)",
-                    border: slippage === val ? "1px solid var(--color-secondary)" : "1px solid var(--border-glass)",
-                    color: slippage === val ? "var(--color-secondary)" : "var(--text-muted)",
-                    padding: "8px 0",
-                    fontSize: "12px",
-                    borderRadius: "8px",
-                    boxShadow: "none"
-                  }}
+                   key={val}
+                   type="button"
+                   className="btn"
+                   onClick={() => setSlippage(val)}
+                   style={{
+                     flex: 1,
+                     background: slippage === val ? "rgba(0, 122, 255, 0.1)" : "rgba(0, 0, 0, 0.03)",
+                     border: slippage === val ? "1px solid var(--color-secondary)" : "1px solid var(--border-glass)",
+                     color: slippage === val ? "var(--color-secondary)" : "var(--text-muted)",
+                     padding: "8px 0",
+                     fontSize: "12px",
+                     borderRadius: "8px",
+                     boxShadow: "none"
+                   }}
                 >
                   {val}%
                 </button>
@@ -371,7 +396,7 @@ export const Swap: React.FC = () => {
 
       {/* Active Liquidity Pools Display */}
       <div style={{
-        background: "rgba(0, 0, 0, 0.15)",
+        background: "rgba(0, 0, 0, 0.05)",
         border: "1px solid var(--border-glass)",
         borderRadius: "12px",
         padding: "12px 16px",
@@ -384,14 +409,20 @@ export const Swap: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>MYC ➔ INR Pool Reserves</span>
-            <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
+            <span className="mono-text" style={{ color: "var(--color-fg)", fontSize: "12px", fontWeight: 700 }}>
               {reserves ? `${parseFloat(reserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} MYC / ${parseFloat(reserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} INR` : "Loading..."}
             </span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>ONYX ➔ INR Pool Reserves</span>
-            <span className="mono-text" style={{ color: "var(--color-primary)", fontSize: "12px" }}>
+            <span className="mono-text" style={{ color: "var(--color-fg)", fontSize: "12px", fontWeight: 700 }}>
               {onyxReserves ? `${parseFloat(onyxReserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} ONYX / ${parseFloat(onyxReserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} INR` : "Loading..."}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>MYC ➔ ONYX Pool Reserves</span>
+            <span className="mono-text" style={{ color: "var(--color-fg)", fontSize: "12px", fontWeight: 700 }}>
+              {mycOnyxReserves ? `${parseFloat(mycOnyxReserves.reserveA).toLocaleString(undefined, {maximumFractionDigits:0})} MYC / ${parseFloat(mycOnyxReserves.reserveB).toLocaleString(undefined, {maximumFractionDigits:0})} ONYX` : "Loading..."}
             </span>
           </div>
         </div>
@@ -402,7 +433,7 @@ export const Swap: React.FC = () => {
         
         {/* From Box */}
         <div style={{
-          background: "rgba(0, 0, 0, 0.25)",
+          background: "rgba(0, 0, 0, 0.02)",
           border: "1px solid var(--border-glass)",
           borderRadius: "16px",
           padding: "16px",
@@ -412,7 +443,7 @@ export const Swap: React.FC = () => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "13px" }}>
             <span>From</span>
-            <span>Balance: {parseFloat(getFromBalance()).toFixed(4)} {fromToken === "USDC" ? "INR" : fromToken}</span>
+            <span>Balance: {parseFloat(getFromBalance()).toFixed(4)} {fromToken}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <input
@@ -435,13 +466,13 @@ export const Swap: React.FC = () => {
             <select
               value={fromToken}
               onChange={(e) => {
-                const selected = e.target.value as "MYC" | "USDC" | "ONYX";
+                const selected = e.target.value as "MYC" | "INR" | "ONYX";
                 setFromToken(selected);
                 setSwapMessage(null);
               }}
               disabled={actionLoading}
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
+                background: "rgba(0, 0, 0, 0.03)",
                 border: "1px solid var(--border-glass)",
                 borderRadius: "12px",
                 padding: "8px 12px",
@@ -453,7 +484,7 @@ export const Swap: React.FC = () => {
               }}
             >
               <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
-              <option value="USDC" style={{ background: "var(--bg-dark)" }}>INR</option>
+              <option value="INR" style={{ background: "var(--bg-dark)" }}>INR</option>
               <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
             </select>
           </div>
@@ -487,7 +518,7 @@ export const Swap: React.FC = () => {
 
         {/* To Box */}
         <div style={{
-          background: "rgba(0, 0, 0, 0.25)",
+          background: "rgba(0, 0, 0, 0.02)",
           border: "1px solid var(--border-glass)",
           borderRadius: "16px",
           padding: "16px",
@@ -498,7 +529,7 @@ export const Swap: React.FC = () => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "13px" }}>
             <span>To (Estimated)</span>
-            <span>Balance: {parseFloat(getToBalance()).toFixed(4)} {toToken === "USDC" ? "INR" : toToken}</span>
+            <span>Balance: {parseFloat(getToBalance()).toFixed(4)} {toToken}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <input
@@ -519,13 +550,13 @@ export const Swap: React.FC = () => {
             <select
               value={toToken}
               onChange={(e) => {
-                const selected = e.target.value as "MYC" | "USDC" | "ONYX";
+                const selected = e.target.value as "MYC" | "INR" | "ONYX";
                 setToToken(selected);
                 setSwapMessage(null);
               }}
               disabled={actionLoading}
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
+                background: "rgba(0, 0, 0, 0.03)",
                 border: "1px solid var(--border-glass)",
                 borderRadius: "12px",
                 padding: "8px 12px",
@@ -537,7 +568,7 @@ export const Swap: React.FC = () => {
               }}
             >
               <option value="MYC" style={{ background: "var(--bg-dark)" }}>MYC</option>
-              <option value="USDC" style={{ background: "var(--bg-dark)" }}>INR</option>
+              <option value="INR" style={{ background: "var(--bg-dark)" }}>INR</option>
               <option value="ONYX" style={{ background: "var(--bg-dark)" }}>ONYX</option>
             </select>
           </div>
@@ -550,7 +581,7 @@ export const Swap: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           gap: "8px",
-          background: "rgba(0, 0, 0, 0.2)",
+          background: "rgba(0, 0, 0, 0.03)",
           borderRadius: "12px",
           padding: "12px 16px",
           marginTop: "16px",
@@ -558,7 +589,7 @@ export const Swap: React.FC = () => {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)" }}>
             <span>Exchange Rate</span>
-            <span style={{ color: "var(--text-main)" }}>
+            <span style={{ color: "var(--text-main)", fontWeight: 500 }}>
               1 {fromToken} = {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(4)} {toToken}
             </span>
           </div>
@@ -566,7 +597,7 @@ export const Swap: React.FC = () => {
           <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)" }}>
             <span>Price Impact</span>
             <span style={{
-              color: priceImpact.level === "high" ? "#ff4da6" : priceImpact.level === "medium" ? "orange" : "var(--color-secondary)",
+              color: priceImpact.level === "high" ? "var(--color-danger)" : priceImpact.level === "medium" ? "var(--color-warning)" : "var(--color-secondary)",
               fontWeight: 600
             }}>
               {priceImpact.percent}%
@@ -578,9 +609,9 @@ export const Swap: React.FC = () => {
       {/* Unsupported Route Warnings */}
       {!isValidPair && (
         <div style={{
-          background: "rgba(255, 0, 122, 0.08)",
-          border: "1px solid rgba(255, 0, 122, 0.2)",
-          color: "#ff8da8",
+          background: "rgba(161, 61, 52, 0.08)",
+          border: "1px solid rgba(161, 61, 52, 0.2)",
+          color: "var(--color-danger)",
           padding: "12px 16px",
           borderRadius: "12px",
           marginTop: "16px",
@@ -593,7 +624,7 @@ export const Swap: React.FC = () => {
           <span>
             {fromToken === toToken 
               ? "Cannot swap the same token." 
-              : "Direct swap route not supported. Swap via USDC (e.g. MYC ➔ USDC ➔ ONYX)."}
+              : "Direct swap route not supported."}
           </span>
         </div>
       )}
@@ -601,9 +632,9 @@ export const Swap: React.FC = () => {
       {/* Price Impact Warnings */}
       {priceImpact.level !== "low" && amountIn && amountOut && isValidPair && (
         <div style={{
-          background: priceImpact.level === "high" ? "rgba(255, 0, 122, 0.08)" : "rgba(255, 166, 0, 0.08)",
-          border: priceImpact.level === "high" ? "1px solid rgba(255, 0, 122, 0.2)" : "1px solid rgba(255, 166, 0, 0.2)",
-          color: priceImpact.level === "high" ? "#ff8da8" : "#decba4",
+          background: priceImpact.level === "high" ? "rgba(161, 61, 52, 0.08)" : "rgba(158, 116, 34, 0.08)",
+          border: priceImpact.level === "high" ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(158, 116, 34, 0.2)",
+          color: priceImpact.level === "high" ? "var(--color-danger)" : "var(--color-warning)",
           padding: "12px 16px",
           borderRadius: "12px",
           marginTop: "16px",
@@ -633,9 +664,9 @@ export const Swap: React.FC = () => {
       {/* Message Output */}
       {swapMessage && (
         <div style={{
-          background: swapMessage.error ? "rgba(255, 0, 122, 0.08)" : "rgba(0, 240, 255, 0.08)",
-          border: swapMessage.error ? "1px solid rgba(255, 0, 122, 0.2)" : "1px solid rgba(0, 240, 255, 0.2)",
-          color: swapMessage.error ? "#ff8da8" : "#94f8ff",
+          background: swapMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
+          border: swapMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
+          color: swapMessage.error ? "var(--color-danger)" : "var(--color-info)",
           padding: "16px",
           borderRadius: "12px",
           marginTop: "20px",
@@ -652,7 +683,7 @@ export const Swap: React.FC = () => {
                   rel="noopener noreferrer"
                   className="mono-text"
                   style={{
-                    color: "var(--color-secondary)",
+                    color: "var(--color-accent)",
                     textDecoration: "underline",
                     display: "block",
                     marginTop: "8px",

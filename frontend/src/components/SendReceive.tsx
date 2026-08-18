@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { ethers, Contract, parseEther, parseUnits, isAddress } from "ethers";
-import { CONTRACT_ADDRESSES, MYCOIN_ABI, MOCKUSDC_ABI } from "../constants/contracts";
+import { CONTRACT_ADDRESSES, MYCOIN_ABI, MOCKINR_ABI } from "../constants/contracts";
 import { QRCodeSVG } from "qrcode.react";
-import { Send, Download, ArrowRightLeft, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
+import { Send, Download, ArrowRightLeft, CheckCircle2, AlertCircle, HelpCircle, QrCode } from "lucide-react";
+import { BarcodeScanner, BarcodeFormat } from "@capacitor-mlkit/barcode-scanning";
+import { Capacitor } from "@capacitor/core";
 
 export const SendReceive: React.FC = () => {
   const {
     address,
     ethBalance,
     mycBalance,
-    usdcBalance,
+    inrBalance,
     onyxBalance,
     sendTokens,
     provider,
@@ -22,7 +24,7 @@ export const SendReceive: React.FC = () => {
   // Send state
   const [recipient, setRecipient] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
-  const [token, setToken] = useState<"ETH" | "MYC" | "USDC" | "ONYX">("ETH");
+  const [token, setToken] = useState<"ETH" | "MYC" | "INR" | "ONYX">("ETH");
   const [txLoading, setTxLoading] = useState<boolean>(false);
   const [txMessage, setTxMessage] = useState<{ text: string; error: boolean; txHash?: string } | null>(null);
 
@@ -33,7 +35,7 @@ export const SendReceive: React.FC = () => {
     if (token === "ETH") return ethBalance;
     if (token === "MYC") return mycBalance;
     if (token === "ONYX") return onyxBalance;
-    return usdcBalance;
+    return inrBalance;
   };
 
   // Live gas estimation helper
@@ -58,9 +60,9 @@ export const SendReceive: React.FC = () => {
         const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, MYCOIN_ABI, provider);
         gasLimit = await onyxContract.transfer.estimateGas(trimmedRecipient, parseEther(amount))
           .catch(() => 65000n); // fallback
-      } else if (token === "USDC" && contractConfigured) {
-        const usdcContract = new Contract(CONTRACT_ADDRESSES.MockUSDC, MOCKUSDC_ABI, provider);
-        gasLimit = await usdcContract.transfer.estimateGas(trimmedRecipient, parseUnits(amount, 6))
+      } else if (token === "INR" && contractConfigured) {
+        const inrContract = new Contract(CONTRACT_ADDRESSES.MockINR, MOCKINR_ABI, provider);
+        gasLimit = await inrContract.transfer.estimateGas(trimmedRecipient, parseUnits(amount, 6))
           .catch(() => 65000n); // fallback
       }
 
@@ -139,12 +141,42 @@ export const SendReceive: React.FC = () => {
     }
   };
 
+  // QR Scanning via capacitor-mlkit barcode scanning
+  const handleScanQr = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      const mockVal = prompt("Enter simulated address:", "0x1d8686F4915beD4b621e568199f2E37A2653b031");
+      if (mockVal) {
+        setRecipient(mockVal.trim());
+      }
+      return;
+    }
+    try {
+      const status = await BarcodeScanner.checkPermissions();
+      if (status.camera !== "granted") {
+        const request = await BarcodeScanner.requestPermissions();
+        if (request.camera !== "granted") {
+          alert("Camera permission is required to scan address QR codes.");
+          return;
+        }
+      }
+      const { barcodes } = await BarcodeScanner.scan({
+        formats: [BarcodeFormat.QrCode],
+      });
+      if (barcodes.length > 0) {
+        const addressScanned = barcodes[0].rawValue || "";
+        setRecipient(addressScanned.trim());
+      }
+    } catch (e) {
+      console.error("QR Code Scan error:", e);
+    }
+  };
+
   return (
     <div className="glass-card" style={{ maxWidth: "600px", margin: "0 auto" }}>
       {/* Tab Selector */}
       <div style={{
         display: "flex",
-        background: "rgba(0, 0, 0, 0.2)",
+        background: "rgba(0, 0, 0, 0.04)",
         borderRadius: "12px",
         padding: "4px",
         marginBottom: "24px"
@@ -155,7 +187,7 @@ export const SendReceive: React.FC = () => {
           style={{
             flex: 1,
             background: activeMode === "send" ? "var(--color-primary)" : "transparent",
-            color: "#fff",
+            color: activeMode === "send" ? "var(--color-fg)" : "var(--color-fg-muted)",
             borderRadius: "10px",
             boxShadow: "none"
           }}
@@ -169,7 +201,7 @@ export const SendReceive: React.FC = () => {
           style={{
             flex: 1,
             background: activeMode === "receive" ? "var(--color-primary)" : "transparent",
-            color: "#fff",
+            color: activeMode === "receive" ? "var(--color-fg)" : "var(--color-fg-muted)",
             borderRadius: "10px",
             boxShadow: "none"
           }}
@@ -185,7 +217,7 @@ export const SendReceive: React.FC = () => {
           <div className="form-group">
             <label className="form-label">Asset to Send</label>
             <div style={{ display: "flex", gap: "10px" }}>
-              {(["ETH", "MYC", "USDC", "ONYX"] as const).map((sym) => (
+              {(["ETH", "MYC", "INR", "ONYX"] as const).map((sym) => (
                 <button
                   type="button"
                   key={sym}
@@ -196,35 +228,46 @@ export const SendReceive: React.FC = () => {
                   }}
                   style={{
                     flex: 1,
-                    background: token === sym ? "rgba(173, 198, 255, 0.12)" : "rgba(0, 0, 0, 0.25)",
-                    border: token === sym ? "1px solid var(--color-primary)" : "1px solid var(--border-glass)",
-                    color: token === sym ? "var(--color-primary)" : "var(--text-muted)",
+                    background: token === sym ? "rgba(0, 122, 255, 0.1)" : "rgba(0, 0, 0, 0.03)",
+                    border: token === sym ? "1px solid var(--color-accent)" : "1px solid var(--border-glass)",
+                    color: token === sym ? "var(--color-accent)" : "var(--text-muted)",
                     borderRadius: "12px",
                     boxShadow: "none"
                   }}
                 >
-                  {sym === "USDC" ? "INR" : sym}
+                  {sym}
                 </button>
               ))}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "13px" }}>
               <span style={{ color: "var(--text-muted)" }}>Available Balance:</span>
-              <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{getSelectedTokenBalance()} {token === "USDC" ? "INR" : token}</span>
+              <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{getSelectedTokenBalance()} {token}</span>
             </div>
           </div>
 
-          {/* Recipient Input */}
+          {/* Recipient Input with QR Camera Scanner Button */}
           <div className="form-group">
             <label className="form-label">Recipient Address</label>
-            <input
-              type="text"
-              className="form-input mono-text"
-              placeholder="0x..."
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              style={{ fontSize: "14px" }}
-              required
-            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                type="text"
+                className="form-input mono-text"
+                placeholder="0x..."
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                style={{ fontSize: "14px", flex: 1 }}
+                required
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleScanQr}
+                style={{ padding: "12px", width: "48px", height: "48px", flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center" }}
+                title="Scan QR Address"
+              >
+                <QrCode size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Amount Input */}
@@ -261,7 +304,7 @@ export const SendReceive: React.FC = () => {
 
           {/* Gas Estimate Summary */}
           <div style={{
-            background: "rgba(0, 0, 0, 0.25)",
+            background: "rgba(0, 0, 0, 0.02)",
             borderRadius: "12px",
             padding: "12px 16px",
             marginBottom: "24px",
@@ -286,9 +329,9 @@ export const SendReceive: React.FC = () => {
           {/* Messages */}
           {txMessage && (
             <div style={{
-              background: txMessage.error ? "rgba(255, 0, 122, 0.08)" : "rgba(0, 240, 255, 0.08)",
-              border: txMessage.error ? "1px solid rgba(255, 0, 122, 0.2)" : "1px solid rgba(0, 240, 255, 0.2)",
-              color: txMessage.error ? "#ff8da8" : "#94f8ff",
+              background: txMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
+              border: txMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
+              color: txMessage.error ? "var(--color-danger)" : "var(--color-info)",
               padding: "16px",
               borderRadius: "12px",
               marginTop: "20px",
@@ -305,7 +348,7 @@ export const SendReceive: React.FC = () => {
                       rel="noopener noreferrer"
                       className="mono-text"
                       style={{
-                        color: "var(--color-secondary)",
+                        color: "var(--color-accent)",
                         textDecoration: "underline",
                         display: "block",
                         marginTop: "8px",
@@ -334,7 +377,7 @@ export const SendReceive: React.FC = () => {
               background: "#fff",
               padding: "20px",
               borderRadius: "20px",
-              boxShadow: "0 0 30px rgba(143, 82, 255, 0.15)",
+              boxShadow: "0 0 30px rgba(0, 0, 0, 0.05)",
               display: "flex",
               justifyContent: "center",
               alignItems: "center"
@@ -347,14 +390,14 @@ export const SendReceive: React.FC = () => {
           <div className="form-group" style={{ width: "100%" }}>
             <span className="form-label" style={{ textAlign: "center" }}>Your Public Address</span>
             <div className="mono-text" style={{
-              background: "rgba(0, 0, 0, 0.25)",
+              background: "rgba(0, 0, 0, 0.02)",
               border: "1px solid var(--border-glass)",
               padding: "16px",
               borderRadius: "12px",
               fontSize: "13px",
               wordBreak: "break-all",
               textAlign: "center",
-              color: "var(--color-secondary)",
+              color: "var(--color-accent)",
               userSelect: "all"
             }}>
               {address}
@@ -362,7 +405,7 @@ export const SendReceive: React.FC = () => {
           </div>
 
           <div style={{
-            background: "rgba(255, 255, 255, 0.03)",
+            background: "rgba(0, 0, 0, 0.02)",
             borderRadius: "12px",
             padding: "12px",
             fontSize: "13px",

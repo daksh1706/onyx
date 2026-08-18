@@ -3,11 +3,74 @@ import { ethers, Wallet, HDNodeWallet, Mnemonic, Contract, formatEther, parseEth
 import {
   CONTRACT_ADDRESSES,
   MYCOIN_ABI,
-  MOCKUSDC_ABI,
+  MOCKINR_ABI,
   FAUCET_ABI,
   SIMPLESWAP_ABI,
 } from "../constants/contracts";
 import { encryptData, decryptData } from "../utils/crypto";
+import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
+import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
+import { NativeBiometric } from "@capgo/capacitor-native-biometric";
+
+// Secure Storage Native-to-Web Fallback Wrappers
+const getSecureItem = async (key: string): Promise<string | null> => {
+  if (!Capacitor.isNativePlatform()) {
+    return localStorage.getItem(key);
+  }
+  try {
+    const result = await SecureStoragePlugin.get({ key });
+    return result.value;
+  } catch (e) {
+    return null;
+  }
+};
+
+const setSecureItem = async (key: string, value: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    localStorage.setItem(key, value);
+    return;
+  }
+  await SecureStoragePlugin.set({ key, value });
+};
+
+const removeSecureItem = async (key: string): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) {
+    localStorage.removeItem(key);
+    return;
+  }
+  try {
+    await SecureStoragePlugin.remove({ key });
+  } catch (e) {
+    // Ignore error if key doesn't exist
+  }
+};
+
+// Biometric Prompt Gater
+export const verifyBiometrics = async (reason: string): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) {
+    // Simulated browser prompt
+    console.log("[Biometrics Mock] Authenticated on web: " + reason);
+    return true;
+  }
+  try {
+    const available = await NativeBiometric.isAvailable();
+    if (!available.isAvailable) {
+      console.warn("Biometrics not available on this device.");
+      return true; // Bypass/proceed if not configured/available
+    }
+    await NativeBiometric.verifyIdentity({
+      reason,
+      title: "Biometric Authentication",
+      subtitle: "Required for secure transaction",
+      description: reason,
+    });
+    return true;
+  } catch (err) {
+    console.error("Biometric authentication failed:", err);
+    return false;
+  }
+};
 
 export interface Transaction {
   hash: string;
@@ -28,11 +91,12 @@ interface WalletContextType {
   walletType: "in-memory" | "metamask" | null;
   ethBalance: string;
   mycBalance: string;
-  usdcBalance: string;
+  inrBalance: string;
   onyxBalance: string;
   lpBalance: string;
   reserves: { reserveA: string; reserveB: string } | null;
   onyxReserves: { reserveA: string; reserveB: string } | null;
+  mycOnyxReserves: { reserveA: string; reserveB: string } | null;
   transactions: Transaction[];
   loading: boolean;
   rpcUrl: string;
@@ -50,9 +114,9 @@ interface WalletContextType {
   lockWallet: () => void;
   unlockWallet: (password: string) => Promise<boolean>;
   refreshState: () => Promise<void>;
-  sendTokens: (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "USDC" | "ONYX") => Promise<ethers.TransactionResponse>;
+  sendTokens: (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "INR" | "ONYX") => Promise<ethers.TransactionResponse>;
   claimFaucet: () => Promise<ethers.TransactionResponse>;
-  swapTokens: (tokenInSymbol: "MYC" | "USDC" | "ONYX", tokenOutSymbol: "MYC" | "USDC" | "ONYX", amountIn: string, minAmountOut: string) => Promise<ethers.TransactionResponse>;
+  swapTokens: (tokenInSymbol: "MYC" | "INR" | "ONYX", tokenOutSymbol: "MYC" | "INR" | "ONYX", amountIn: string, minAmountOut: string) => Promise<ethers.TransactionResponse>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -84,11 +148,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Balance states
   const [ethBalance, setEthBalance] = useState<string>("0");
   const [mycBalance, setMycBalance] = useState<string>("0");
-  const [usdcBalance, setUsdcBalance] = useState<string>("0");
+  const [inrBalance, setInrBalance] = useState<string>("0");
   const [onyxBalance, setOnyxBalance] = useState<string>("0");
   const [lpBalance, setLpBalance] = useState<string>("0");
   const [reserves, setReserves] = useState<{ reserveA: string; reserveB: string } | null>(null);
   const [onyxReserves, setOnyxReserves] = useState<{ reserveA: string; reserveB: string } | null>(null);
+  const [mycOnyxReserves, setMycOnyxReserves] = useState<{ reserveA: string; reserveB: string } | null>(null);
 
   // Tx history
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -96,26 +161,30 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const contractConfigured = Boolean(
     CONTRACT_ADDRESSES.MyCoin &&
-    CONTRACT_ADDRESSES.MockUSDC &&
+    CONTRACT_ADDRESSES.MockINR &&
     CONTRACT_ADDRESSES.CustomToken &&
     CONTRACT_ADDRESSES.Faucet &&
     CONTRACT_ADDRESSES.SimpleSwap &&
-    CONTRACT_ADDRESSES.OnyxSwap
+    CONTRACT_ADDRESSES.OnyxSwap &&
+    CONTRACT_ADDRESSES.MycOnyxSwap
   );
 
-  // Check saved wallet on startup
+  // Check saved wallet on startup (Secure Storage aware)
   useEffect(() => {
-    const savedToken = localStorage.getItem("onyx_jwt_token");
-    const savedUser = localStorage.getItem("onyx_username");
-    const savedWallet = localStorage.getItem("onyx_encrypted_wallet");
+    const loadSavedCredentials = async () => {
+      const savedToken = await getSecureItem("onyx_jwt_token");
+      const savedUser = await getSecureItem("onyx_username");
+      const savedWallet = await getSecureItem("onyx_encrypted_wallet");
 
-    if (savedToken && savedUser && savedWallet) {
-      setToken(savedToken);
-      setUsername(savedUser);
-      setHasSavedWallet(true);
-      setIsLocked(true);
-      setIsAuthenticated(true);
-    }
+      if (savedToken && savedUser && savedWallet) {
+        setToken(savedToken);
+        setUsername(savedUser);
+        setHasSavedWallet(true);
+        setIsLocked(true);
+        setIsAuthenticated(true);
+      }
+    };
+    loadSavedCredentials();
   }, []);
 
   // Initialize and rotate provider on RPC index change
@@ -140,18 +209,23 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWalletType(null);
     setEthBalance("0");
     setMycBalance("0");
-    setUsdcBalance("0");
+    setInrBalance("0");
     setOnyxBalance("0");
     setLpBalance("0");
     setTransactions([]);
-    localStorage.removeItem("onyx_jwt_token");
-    localStorage.removeItem("onyx_username");
-    localStorage.removeItem("onyx_encrypted_wallet");
     setToken(null);
     setUsername(null);
     setIsAuthenticated(false);
     setHasSavedWallet(false);
     setIsLocked(false);
+
+    // Secure async wipe
+    const wipe = async () => {
+      await removeSecureItem("onyx_jwt_token");
+      await removeSecureItem("onyx_username");
+      await removeSecureItem("onyx_encrypted_wallet");
+    };
+    wipe();
   }, []);
 
   const lockWallet = useCallback(() => {
@@ -162,7 +236,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWalletType(null);
     setEthBalance("0");
     setMycBalance("0");
-    setUsdcBalance("0");
+    setInrBalance("0");
     setOnyxBalance("0");
     setLpBalance("0");
     setTransactions([]);
@@ -208,11 +282,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const mycBal = await mycContract.balanceOf(activeAddress);
         setMycBalance(formatEther(mycBal));
 
-        // 3. Fetch USDC Balance
-        const usdcContract = new Contract(CONTRACT_ADDRESSES.MockUSDC, MOCKUSDC_ABI, provider);
-        const usdcBal = await usdcContract.balanceOf(activeAddress);
-        setAddress(activeAddress); // redundant but safe
-        setUsdcBalance(formatUnits(usdcBal, 6));
+        // 3. Fetch INR Balance (under the hood uses VITE_USDC_ADDRESS contract with decimal 6)
+        const inrContract = new Contract(CONTRACT_ADDRESSES.MockINR, MOCKINR_ABI, provider);
+        const inrBal = await inrContract.balanceOf(activeAddress);
+        setAddress(activeAddress);
+        setInrBalance(formatUnits(inrBal, 6));
 
         // 3b. Fetch CustomToken (Onyx) Balance
         const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, MYCOIN_ABI, provider);
@@ -243,6 +317,17 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
         }
 
+        // 5c. Fetch MycOnyxSwap reserves
+        if (CONTRACT_ADDRESSES.MycOnyxSwap) {
+          const mycOnyxSwapContract = new Contract(CONTRACT_ADDRESSES.MycOnyxSwap, SIMPLESWAP_ABI, provider);
+          const moResA = await mycOnyxSwapContract.reserveA();
+          const moResB = await mycOnyxSwapContract.reserveB();
+          setMycOnyxReserves({
+            reserveA: formatEther(moResA),
+            reserveB: formatEther(moResB),
+          });
+        }
+
         // 6. Fetch Tx History (from backend cache if authenticated, else from blockchain logs)
         let txList: Transaction[] = [];
         let fetchedFromBackend = false;
@@ -259,7 +344,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               txList = data.map((t: any) => ({
                 hash: t.hash,
                 type: t.type as any,
-                token: t.token,
+                token: t.token === "USDC" ? "INR" : t.token,
                 amount: t.amount,
                 otherAddress: t.otherAddress,
                 blockNumber: t.blockNumber,
@@ -289,7 +374,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             txList.push({
               hash: parsedLog.transactionHash,
               type: "Faucet",
-              token: "MYC+USDC+ONYX",
+              token: "MYC+INR+ONYX",
               amount: "100+100+100",
               blockNumber: parsedLog.blockNumber,
             });
@@ -310,7 +395,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             txList.push({
               hash: parsedLog.transactionHash,
               type: "Swap",
-              token: isMyc ? "MYC → USDC" : "USDC → MYC",
+              token: isMyc ? "MYC → INR" : "INR → MYC",
               amount: isMyc 
                 ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
                 : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
@@ -335,7 +420,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               txList.push({
                 hash: parsedLog.transactionHash,
                 type: "Swap",
-                token: isOnyx ? "ONYX → USDC" : "USDC → ONYX",
+                token: isOnyx ? "ONYX → INR" : "INR → ONYX",
                 amount: isOnyx 
                   ? `${formatEther(amountIn)} → ${formatUnits(amountOut, 6)}`
                   : `${formatUnits(amountIn, 6)} → ${formatEther(amountOut)}`,
@@ -447,6 +532,32 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [address, provider, refreshState]);
 
+  // Capacitor Active Lifecycle App Listener to prevent stale data
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let active = true;
+    let appListener: any = null;
+
+    const setupListener = async () => {
+      appListener = await App.addListener("appStateChange", (state) => {
+        if (state.isActive && active) {
+          console.log("[AppState] App became active, reloading blockchain state...");
+          refreshState();
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      active = false;
+      if (appListener) {
+        appListener.remove();
+      }
+    };
+  }, [refreshState]);
+
   const cacheTransaction = useCallback(async (txData: {
     hash: string;
     type: "Send" | "Receive" | "Swap" | "Faucet";
@@ -464,7 +575,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(txData)
+        body: JSON.stringify({
+          ...txData,
+          token: txData.token === "INR" ? "USDC" : txData.token // Store as USDC on backend database
+        })
       });
     } catch (e) {
       console.error("Failed to cache transaction to database:", e);
@@ -496,9 +610,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const data = await res.json();
 
-      localStorage.setItem("onyx_jwt_token", data.token);
-      localStorage.setItem("onyx_username", data.username);
-      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+      await setSecureItem("onyx_jwt_token", data.token);
+      await setSecureItem("onyx_username", data.username);
+      await setSecureItem("onyx_encrypted_wallet", data.encryptedWallet);
 
       setToken(data.token);
       setUsername(data.username);
@@ -542,9 +656,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const data = await res.json();
 
-      localStorage.setItem("onyx_jwt_token", data.token);
-      localStorage.setItem("onyx_username", data.username);
-      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+      await setSecureItem("onyx_jwt_token", data.token);
+      await setSecureItem("onyx_username", data.username);
+      await setSecureItem("onyx_encrypted_wallet", data.encryptedWallet);
 
       setToken(data.token);
       setUsername(data.username);
@@ -591,9 +705,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const data = await res.json();
 
-      localStorage.setItem("onyx_jwt_token", data.token);
-      localStorage.setItem("onyx_username", data.username);
-      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+      await setSecureItem("onyx_jwt_token", data.token);
+      await setSecureItem("onyx_username", data.username);
+      await setSecureItem("onyx_encrypted_wallet", data.encryptedWallet);
 
       setToken(data.token);
       setUsername(data.username);
@@ -630,9 +744,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const data = await res.json();
 
-      localStorage.setItem("onyx_jwt_token", data.token);
-      localStorage.setItem("onyx_username", data.username);
-      localStorage.setItem("onyx_encrypted_wallet", data.encryptedWallet);
+      await setSecureItem("onyx_jwt_token", data.token);
+      await setSecureItem("onyx_username", data.username);
+      await setSecureItem("onyx_encrypted_wallet", data.encryptedWallet);
 
       setToken(data.token);
       setUsername(data.username);
@@ -673,7 +787,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const unlockWallet = async (password: string): Promise<boolean> => {
-    const saved = localStorage.getItem("onyx_encrypted_wallet");
+    const saved = await getSecureItem("onyx_encrypted_wallet");
     if (!saved) return false;
     try {
       const decrypted = await decryptData(saved, password);
@@ -775,7 +889,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return false;
   };
 
-  const sendTokens = async (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "USDC" | "ONYX") => {
+  const sendTokens = async (to: string, amount: string, tokenSymbol: "ETH" | "MYC" | "INR" | "ONYX") => {
+    const verified = await verifyBiometrics(`Confirm sending ${amount} ${tokenSymbol} to ${to}`);
+    if (!verified) throw new Error("Biometric authorization required");
+    
     if (!signer) throw new Error("Wallet not connected");
 
     let tx: ethers.TransactionResponse;
@@ -791,9 +908,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else if (tokenSymbol === "ONYX") {
       const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, MYCOIN_ABI, signer);
       tx = await onyxContract.transfer(to, parseEther(amount));
+    } else if (tokenSymbol === "INR") {
+      const inrContract = new Contract(CONTRACT_ADDRESSES.MockINR, MOCKINR_ABI, signer);
+      tx = await inrContract.transfer(to, parseUnits(amount, 6));
     } else {
-      const usdcContract = new Contract(CONTRACT_ADDRESSES.MockUSDC, MOCKUSDC_ABI, signer);
-      tx = await usdcContract.transfer(to, parseUnits(amount, 6));
+      throw new Error("Unsupported token symbol");
     }
 
     tx.wait().then(async (receipt: any) => {
@@ -815,6 +934,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const claimFaucet = async () => {
+    const verified = await verifyBiometrics("Confirm claiming tokens from Faucet");
+    if (!verified) throw new Error("Biometric authorization required");
+
     if (!signer) throw new Error("Wallet not connected");
     const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, signer);
     const tx = await faucetContract.requestTokens();
@@ -824,7 +946,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await cacheTransaction({
           hash: tx.hash,
           type: "Faucet",
-          token: "MYC+USDC+ONYX",
+          token: "MYC+INR+ONYX",
           amount: "100+100+100",
           blockNumber: receipt.blockNumber,
           timestamp: Date.now()
@@ -837,15 +959,22 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const swapTokens = async (
-    tokenInSymbol: "MYC" | "USDC" | "ONYX",
-    tokenOutSymbol: "MYC" | "USDC" | "ONYX",
+    tokenInSymbol: "MYC" | "INR" | "ONYX",
+    tokenOutSymbol: "MYC" | "INR" | "ONYX",
     amountIn: string,
     minAmountOut: string
   ) => {
+    const verified = await verifyBiometrics(`Confirm swapping ${amountIn} ${tokenInSymbol} for ${tokenOutSymbol}`);
+    if (!verified) throw new Error("Biometric authorization required");
+
     if (!signer) throw new Error("Wallet not connected");
 
-    const isOnyxSwap = tokenInSymbol === "ONYX" || tokenOutSymbol === "ONYX";
-    const swapContractAddress = isOnyxSwap ? CONTRACT_ADDRESSES.OnyxSwap : CONTRACT_ADDRESSES.SimpleSwap;
+    let swapContractAddress = CONTRACT_ADDRESSES.SimpleSwap;
+    if ((tokenInSymbol === "MYC" && tokenOutSymbol === "ONYX") || (tokenInSymbol === "ONYX" && tokenOutSymbol === "MYC")) {
+      swapContractAddress = CONTRACT_ADDRESSES.MycOnyxSwap;
+    } else if (tokenInSymbol === "ONYX" || tokenOutSymbol === "ONYX") {
+      swapContractAddress = CONTRACT_ADDRESSES.OnyxSwap;
+    }
     const swapContract = new Contract(swapContractAddress, SIMPLESWAP_ABI, signer);
 
     let tokenInAddress = "";
@@ -860,13 +989,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       tokenInAddress = CONTRACT_ADDRESSES.CustomToken;
       tokenABI = MYCOIN_ABI;
       decimalsIn = 18;
-    } else {
-      tokenInAddress = CONTRACT_ADDRESSES.MockUSDC;
-      tokenABI = MOCKUSDC_ABI;
+    } else if (tokenInSymbol === "INR") {
+      tokenInAddress = CONTRACT_ADDRESSES.MockINR;
+      tokenABI = MOCKINR_ABI;
       decimalsIn = 6;
     }
 
-    const decimalsOut = tokenOutSymbol === "USDC" ? 6 : 18;
+    const decimalsOut = tokenOutSymbol === "INR" ? 6 : 18;
 
     const rawAmountIn = parseUnits(amountIn, decimalsIn);
     const rawMinAmountOut = parseUnits(minAmountOut, decimalsOut);
@@ -947,11 +1076,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         walletType,
         ethBalance,
         mycBalance,
-        usdcBalance,
+        inrBalance,
         onyxBalance,
         lpBalance,
         reserves,
         onyxReserves,
+        mycOnyxReserves,
         transactions,
         loading,
         rpcUrl: SEPOLIA_RPCS[rpcIndex],

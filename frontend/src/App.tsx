@@ -114,7 +114,7 @@ function MainApp() {
               fontWeight: 700,
               fontSize: "13px",
               background: "var(--color-primary)",
-              color: "#0b1326",
+              color: "var(--color-on-primary)",
               textTransform: "uppercase",
               letterSpacing: "0.05em"
             }}
@@ -130,11 +130,11 @@ function MainApp() {
               width: "32px",
               height: "32px",
               borderRadius: "8px",
-              background: "rgba(0, 219, 233, 0.1)",
+              background: "var(--color-primary-glow)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "var(--color-primary)"
+              color: "var(--color-accent)"
             }}>
               <Shield size={16} />
             </div>
@@ -158,7 +158,7 @@ function MainApp() {
               className="btn btn-secondary"
               title="Disconnect & Wipe"
               onClick={disconnectWallet}
-              style={{ flex: 1, padding: "8px", borderRadius: "8px", color: "rgba(255, 0, 85, 0.85)" }}
+              style={{ flex: 1, padding: "8px", borderRadius: "8px", color: "var(--color-danger)" }}
             >
               <LogOut size={14} />
             </button>
@@ -182,7 +182,7 @@ function MainApp() {
               <Bell size={18} style={{ color: "var(--text-muted)" }} />
             </button>
             <div className="dropdown-pill" onClick={handleCopyAddress}>
-              <Landmark size={16} style={{ color: "var(--color-primary)" }} />
+              <Landmark size={16} style={{ color: "var(--color-accent)" }} />
               <span className="mono-text">{copied ? "Copied!" : truncatedAddress}</span>
               <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />
             </div>
@@ -191,7 +191,7 @@ function MainApp() {
 
         {/* Mobile Header (Sticky at top when sidebar is hidden) */}
         <header className="mobile-header">
-          <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-primary)" }}>MyCoin</h2>
+          <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-accent)" }}>MyCoin</h2>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div className="dropdown-pill" onClick={handleCopyAddress} style={{ padding: "4px 10px", fontSize: "11px" }}>
               <span className="mono-text">{copied ? "Copied!" : truncatedAddress}</span>

@@ -15,7 +15,6 @@ export const Markets: React.FC = () => {
   const rawMycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
   const rawOnyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
   const rawEthPrice = 3500.00;
-  const rawUsdcPrice = 1.00;
 
   const getPriceInInr = (rawPrice: number) => rawPrice * INR_MULTIPLIER;
 
@@ -23,7 +22,7 @@ export const Markets: React.FC = () => {
     selectedPair === "MYC" ? getPriceInInr(rawMycPrice) :
     selectedPair === "ONYX" ? getPriceInInr(rawOnyxPrice) :
     selectedPair === "ETH" ? getPriceInInr(rawEthPrice) :
-    getPriceInInr(rawUsdcPrice);
+    1.00;
 
   // Address-seeded stable parameters
   const addressSeed = address ? parseInt(address.slice(2, 10), 16) : 42;
@@ -76,7 +75,6 @@ export const Markets: React.FC = () => {
   for (let i = 1; i < prices.length; i++) {
     linePath += ` L ${getX(i)} ${getY(prices[i])}`;
   }
-  const areaPath = `${linePath} L ${chartWidth} ${chartHeight} L 0 ${chartHeight} Z`;
 
   // CoinMarketCap Statistics (Seeded but stable per token)
   const getStats = () => {
@@ -155,8 +153,6 @@ export const Markets: React.FC = () => {
     return "₹" + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
   };
 
-
-
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       
@@ -174,7 +170,7 @@ export const Markets: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <div style={{
             background: "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
-            color: "#0b1326",
+            color: "var(--color-fg-inverse)",
             width: "44px",
             height: "44px",
             borderRadius: "12px",
@@ -183,7 +179,7 @@ export const Markets: React.FC = () => {
             justifyContent: "center",
             fontWeight: 900,
             fontSize: "18px",
-            boxShadow: "0 0 15px rgba(0, 219, 233, 0.25)"
+            boxShadow: "0 0 15px rgba(0, 122, 255, 0.15)"
           }}>
             {stats.symbol[0]}
           </div>
@@ -192,84 +188,85 @@ export const Markets: React.FC = () => {
               <h1 style={{ fontSize: "22px", fontWeight: 800, margin: 0, color: "var(--text-main)" }}>
                 {stats.name}
               </h1>
-              <span className="mono-text" style={{ fontSize: "11px", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "6px" }}>
+              <span className="mono-text" style={{ fontSize: "11px", color: "var(--text-muted)", background: "rgba(0,0,0,0.03)", padding: "2px 6px", borderRadius: "6px" }}>
                 {stats.symbol}
               </span>
-              <span className="mono-text" style={{ fontSize: "10px", background: "var(--color-primary)", padding: "2px 6px", borderRadius: "6px", color: "#0b1326", fontWeight: 700 }}>
+              <span className="mono-text" style={{ fontSize: "10px", background: "var(--color-primary)", padding: "2px 6px", borderRadius: "6px", color: "var(--color-on-primary)", fontWeight: 700 }}>
                 RANK #{stats.rank}
               </span>
             </div>
-            <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "var(--text-muted)" }}>
-              DEX liquidity pairs tradeable on Sepolia Testnet
-            </p>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {/* Custom Select Button styling to look professional */}
-          <div style={{ position: "relative" }}>
-            <select 
-              value={selectedPair} 
-              onChange={(e) => {
-                setSelectedPair(e.target.value as any);
-                setHoverIndex(null);
-              }}
-              className="form-input"
-              style={{ 
-                width: "160px", 
-                background: "rgba(255, 255, 255, 0.03)", 
-                border: "1px solid var(--border-glass)", 
-                color: "var(--color-primary)",
-                fontWeight: 700,
-                fontSize: "13px",
-                padding: "8px 16px",
-                borderRadius: "10px",
-                cursor: "pointer"
-              }}
-            >
-              <option value="MYC">MYC</option>
-              <option value="ONYX">ONYX</option>
-              <option value="ETH">ETH</option>
-              <option value="INR">INR</option>
-            </select>
-          </div>
-          <button className="circle-btn" title="Add to watchlist" style={{ border: "1px solid var(--border-glass)" }}>
-            <Star size={15} style={{ color: "orange" }} />
+        {/* Action Controls */}
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button className="btn btn-secondary" style={{ padding: "10px 14px", display: "inline-flex", gap: "6px", borderRadius: "10px" }}>
+            <Star size={15} />
+            Watchlist
           </button>
-          <button className="circle-btn" title="Share token" style={{ border: "1px solid var(--border-glass)" }}>
+          <button className="btn btn-secondary" style={{ padding: "10px 14px", display: "inline-flex", gap: "6px", borderRadius: "10px" }}>
             <Share2 size={15} />
+            Share
           </button>
         </div>
       </div>
 
-      {/* Main Grid: Left statistics, Right Trade Chart */}
+      {/* Main Layout Grid */}
       <div className="dashboard-grid">
         
-        {/* Left Column - CoinMarketCap Stats (grid-col-4) */}
+        {/* Left Column - Stats (grid-col-4) */}
         <div className="grid-col-4" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          
+          {/* Token Select Panel */}
           <section className="glass-panel" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
-            <h3 style={{ fontSize: "12px", fontWeight: 700, marginBottom: "20px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Key Metrics (INR)
+            <h3 style={{ fontSize: "14px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "12px", letterSpacing: "0.05em" }}>
+              Select Asset Pair
             </h3>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              {(["MYC", "ONYX", "ETH", "INR"] as const).map((pair) => (
+                <button
+                  key={pair}
+                  className="btn"
+                  onClick={() => setSelectedPair(pair)}
+                  style={{
+                    background: selectedPair === pair ? "var(--color-primary)" : "rgba(0,0,0,0.02)",
+                    border: selectedPair === pair ? "1px solid var(--color-primary-active)" : "1px solid var(--border-glass)",
+                    color: selectedPair === pair ? "var(--color-on-primary)" : "var(--text-muted)",
+                    padding: "10px",
+                    fontWeight: 700,
+                    borderRadius: "10px",
+                    boxShadow: "none"
+                  }}
+                >
+                  {pair} / INR
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Market Cap & Supply Stats */}
+          <section className="glass-panel" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
+            <h3 style={{ fontSize: "14px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "16px", letterSpacing: "0.05em" }}>
+              Market Valuation Stats
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Market Cap</span>
-                <span className="mono-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-main)" }}>
+                <span className="mono-text" style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-main)" }}>
                   {formatCompact(stats.mcap)}
                 </span>
               </div>
               <hr style={{ border: 0, borderTop: "1px solid var(--border-glass)", margin: 0 }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>24h Volume</span>
-                <span className="mono-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-main)" }}>
+                <span className="mono-text" style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-main)" }}>
                   {formatCompact(stats.vol)}
                 </span>
               </div>
               <hr style={{ border: 0, borderTop: "1px solid var(--border-glass)", margin: 0 }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>FDV</span>
-                <span className="mono-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-main)" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Fully Diluted Val</span>
+                <span className="mono-text" style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-main)" }}>
                   {formatCompact(stats.fdv)}
                 </span>
               </div>
@@ -297,7 +294,7 @@ export const Markets: React.FC = () => {
               On-Chain Pricing Method
             </h4>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
-              Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: {stats.name} reserve divided by USDC reserve.
+              Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: {stats.name} reserve divided by INR reserve.
             </p>
           </section>
         </div>
@@ -315,31 +312,32 @@ export const Markets: React.FC = () => {
                 <p className="mono-text" style={{ 
                   fontSize: "13px", 
                   fontWeight: 700, 
-                  color: percentageChange >= 0 ? "#4edea3" : "rgba(255, 0, 85, 0.85)",
+                  color: percentageChange >= 0 ? "var(--color-success)" : "var(--color-danger)",
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  margin: "4px 0 0 0"
+                  marginTop: "2px"
                 }}>
                   {percentageChange >= 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                  {percentageChange >= 0 ? "+" : ""}{percentageChange.toFixed(2)}% (24h)
+                  {percentageChange >= 0 ? "+" : ""}{percentageChange.toFixed(2)}% ({formatCurrency(priceDiff)})
                 </p>
               </div>
 
-              {/* Timeframes */}
-              <div style={{ display: "flex", gap: "4px", background: "rgba(255,255,255,0.05)", padding: "4px", borderRadius: "8px" }}>
+              {/* Timeframes filter */}
+              <div style={{ display: "flex", gap: "4px", background: "rgba(0,0,0,0.03)", padding: "4px", borderRadius: "8px" }}>
                 {(["24h", "1W", "1M", "1Y", "All"] as const).map((t) => (
                   <button
                     key={t}
-                    onClick={() => setTimeframe(t)}
                     className="btn"
+                    onClick={() => setTimeframe(t)}
                     style={{
-                      padding: "4px 10px",
+                      padding: "6px 12px",
                       fontSize: "11px",
                       borderRadius: "6px",
                       background: t === timeframe ? "var(--color-primary)" : "transparent",
-                      color: t === timeframe ? "#0b1326" : "var(--text-muted)",
+                      color: t === timeframe ? "var(--color-on-primary)" : "var(--text-muted)",
                       fontWeight: t === timeframe ? 700 : 500,
+                      boxShadow: "none"
                     }}
                   >
                     {t}
@@ -348,127 +346,74 @@ export const Markets: React.FC = () => {
               </div>
             </div>
 
-            {/* Dotted opening price threshold and main line graph */}
-            <div 
-              style={{ 
-                height: `${chartHeight}px`, 
-                width: "100%", 
-                position: "relative",
-                background: "rgba(0,0,0,0.1)",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.02)"
-              }}
-              onMouseLeave={() => setHoverIndex(null)}
-              onMouseMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const ratio = mouseX / rect.width;
-                const index = Math.min(
-                  prices.length - 1,
-                  Math.max(0, Math.floor(ratio * prices.length))
-                );
-                setHoverIndex(index);
-              }}
-            >
-              <svg width="100%" height="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+            {/* Price Chart SVG */}
+            <div style={{ position: "relative", width: "100%", overflow: "hidden" }}>
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: "100%", overflow: "visible" }}>
                 <defs>
-                  <linearGradient id="marketsGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor={percentageChange >= 0 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} stopOpacity="0.2" />
-                    <stop offset="95%" stopColor={percentageChange >= 0 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} stopOpacity="0" />
+                  <linearGradient id="markets-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={percentageChange >= 0 ? "var(--color-success)" : "var(--color-danger)"} stopOpacity="0.2" />
+                    <stop offset="95%" stopColor={percentageChange >= 0 ? "var(--color-success)" : "var(--color-danger)"} stopOpacity="0" />
                   </linearGradient>
                 </defs>
 
-                {/* Dotted Opening Price Line */}
-                <line 
-                  x1="0" 
-                  y1={getY(openedPrice)} 
-                  x2={chartWidth} 
-                  y2={getY(openedPrice)} 
-                  stroke="rgba(255,255,255,0.12)" 
-                  strokeDasharray="4 4" 
-                  strokeWidth="1.5" 
-                />
-
-                {/* Fill Area */}
-                <path d={areaPath} fill="url(#marketsGradient)" />
-
-                {/* Line Path */}
-                <path 
-                  d={linePath} 
-                  fill="none" 
-                  stroke={percentageChange >= 0 ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} 
-                  strokeWidth="2.5" 
+                {/* Area under curve */}
+                <path d={`M 0,${chartHeight} L 0,${getY(prices[0])} L ${prices.map((p, i) => `${getX(i)},${getY(p)}`).join(" ")} L ${chartWidth},${chartHeight} Z`} fill="url(#markets-gradient)" />
+                
+                {/* SVG Polyline Stroke */}
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke={percentageChange >= 0 ? "var(--color-success)" : "var(--color-danger)"}
+                  strokeWidth="3.5"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="chart-glow"
                 />
 
-                {/* Hover Guide lines */}
+                {/* Grid guidelines */}
+                <line x1="0" y1={chartHeight / 2} x2={chartWidth} y2={chartHeight / 2} stroke="var(--border-glass)" strokeDasharray="4 4" />
+                <line x1={chartWidth / 2} y1="0" x2={chartWidth / 2} y2={chartHeight} stroke="var(--border-glass)" strokeDasharray="4 4" />
+
+                {/* Interactive hover guides */}
                 {hoverIndex !== null && (
-                  <line 
-                    x1={getX(hoverIndex)} 
-                    y1="0" 
-                    x2={getX(hoverIndex)} 
-                    y2={chartHeight} 
-                    stroke="rgba(255,255,255,0.15)" 
-                    strokeDasharray="2 2"
-                  />
+                  <>
+                    <line x1={getX(hoverIndex)} y1="0" x2={getX(hoverIndex)} y2={chartHeight} stroke="var(--color-accent)" strokeWidth="1" />
+                    <circle cx={getX(hoverIndex)} cy={getY(prices[hoverIndex])} r="6" fill="var(--color-accent)" stroke="var(--color-bg)" strokeWidth="2" />
+                  </>
                 )}
+
+                {/* Invisible overlay for capture interactions */}
+                <rect
+                  width={chartWidth}
+                  height={chartHeight}
+                  fill="transparent"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const index = Math.round((x / rect.width) * (prices.length - 1));
+                    if (index >= 0 && index < prices.length) {
+                      setHoverIndex(index);
+                    }
+                  }}
+                  onMouseLeave={() => setHoverIndex(null)}
+                  style={{ cursor: "crosshair" }}
+                />
               </svg>
-
-              {/* Price axis tags on the right */}
-              <div style={{
-                position: "absolute",
-                top: 0,
-                right: "12px",
-                bottom: 0,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                fontSize: "10px",
-                color: "var(--text-muted)",
-                fontFamily: "var(--font-mono)",
-                pointerEvents: "none",
-                textAlign: "right"
-              }}>
-                <span>{formatCurrency(maxPrice)}</span>
-                <span>{formatCurrency(openedPrice)}</span>
-                <span>{formatCurrency(minPrice)}</span>
-              </div>
-
-              {/* Live Interactive Hover Tooltip */}
-              {hoverIndex !== null && (
-                <div style={{
-                  position: "absolute",
-                  top: "16px",
-                  left: "16px",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border-glass)",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                  pointerEvents: "none"
-                }}>
-                  <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "9px" }}>HISTORICAL POINT</p>
-                  <p className="mono-text" style={{ margin: "2px 0 0 0", fontWeight: 700, color: "var(--color-primary)" }}>
-                    {formatCurrency(prices[hoverIndex])}
-                  </p>
-                </div>
-              )}
             </div>
 
-            {/* Time labels below chart */}
-            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "10px", marginTop: "12px", fontFamily: "var(--font-mono)" }}>
-              <span>17 Aug</span>
-              <span>3:00 AM</span>
-              <span>6:00 AM</span>
-              <span>9:00 AM</span>
-              <span>12:00 PM</span>
-              <span>3:00 PM</span>
-              <span>6:00 PM</span>
-              <span>9:00 PM</span>
+            {/* Chart footer tooltip info */}
+            <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--text-muted)" }}>
+              <span>First point: {formatCurrency(openedPrice)}</span>
+              {hoverIndex !== null && (
+                <span className="mono-text" style={{ color: "var(--color-accent)", fontWeight: 700 }}>
+                  Selected Rate: {formatCurrency(prices[hoverIndex])}
+                </span>
+              )}
+              <span>Last point: {formatCurrency(currentPriceInr)}</span>
             </div>
           </section>
         </div>
+
       </div>
     </div>
   );

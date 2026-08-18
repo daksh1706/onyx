@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, ShieldCheck, HelpCircle, AlertTriangle } from "lucide-react";
+import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap") => void;
@@ -13,7 +13,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     address,
     ethBalance,
     mycBalance,
-    usdcBalance,
+    inrBalance,
     onyxBalance,
     refreshState,
     claimFaucet,
@@ -68,7 +68,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
       const tx = await claimFaucet();
       setFaucetMessage({ text: "Submitted transaction...", error: false });
       await tx.wait();
-      setFaucetMessage({ text: "Claimed 100 MYC, 100 INR, and 100 ONYX!", error: false });
+      setFaucetMessage({ text: "Claimed 100 MYC, 100 INR, and 100 ONYX test tokens!", error: false });
       refreshState();
       checkFaucetCooldown();
       setTimeout(() => setFaucetMessage(null), 5000);
@@ -95,18 +95,18 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   const mycPrice = rawMycPrice * INR_MULTIPLIER;
   const onyxPrice = rawOnyxPrice * INR_MULTIPLIER;
   const ethPrice = 3500.00 * INR_MULTIPLIER;
-  const usdcPrice = 1.00 * INR_MULTIPLIER;
+  const inrPrice = 1.00; // INR unit price in INR is 1.0
 
   const ethVal = parseFloat(ethBalance || "0") * ethPrice;
   const mycVal = parseFloat(mycBalance || "0") * mycPrice;
-  const usdcVal = parseFloat(usdcBalance || "0") * usdcPrice;
+  const inrVal = parseFloat(inrBalance || "0") * inrPrice;
   const onyxVal = parseFloat(onyxBalance || "0") * onyxPrice;
-  const totalUsdVal = ethVal + mycVal + usdcVal + onyxVal;
+  const totalValInr = ethVal + mycVal + inrVal + onyxVal;
 
   // Address seed to generate unique, stable gain percent per address
   const addressSeed = address ? parseInt(address.slice(2, 10), 16) : 42;
   const gainPercent = 1.0 + (addressSeed % 90) / 10; // Between 1.0% and 10.0%
-  const gainUsd = totalUsdVal * (gainPercent / 100);
+  const gainInr = totalValInr * (gainPercent / 100);
 
   const formatNumber = (num: number, dec: number = 2) => {
     return num.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -120,80 +120,44 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   };
 
   // Donut SVG ratio calculations
-  const totalWeight = totalUsdVal || 1;
+  const totalWeight = totalValInr || 1;
   const mycPercent = (mycVal / totalWeight) * 100;
-  const usdcPercent = (usdcVal / totalWeight) * 100;
+  const inrPercent = (inrVal / totalWeight) * 100;
   const onyxPercent = (onyxVal / totalWeight) * 100;
   const ethPercent = (ethVal / totalWeight) * 100;
 
   // Segment values for SVG dashoffsets
   const mycOffset = 0;
-  const usdcOffset = -mycPercent;
-  const onyxOffset = -(mycPercent + usdcPercent);
-  const ethOffset = -(mycPercent + usdcPercent + onyxPercent);
+  const inrOffset = -mycPercent;
+  const onyxOffset = -(mycPercent + inrPercent);
+  const ethOffset = -(mycPercent + inrPercent + onyxPercent);
 
   // Check if wallet is empty
-  const isWalletEmpty = totalUsdVal <= 0;
+  const isWalletEmpty = totalValInr <= 0;
 
   return (
     <div className="fade-in">
       
-      {/* Header and Top stats cards */}
-      <header style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        gap: "24px",
-        marginBottom: "32px",
-        flexWrap: "wrap"
-      }}>
-        <div>
-          <h1 style={{ fontSize: "36px", fontWeight: 800, color: "var(--color-primary)", letterSpacing: "-0.02em" }}>
-            Portfolio Analysis
-          </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px", maxWidth: "600px" }}>
-            Comprehensive real-time tracking of your digital assets and performance metrics across multiple chains.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-          <div className="glass-panel" style={{ padding: "12px 24px", borderRadius: "12px" }}>
-            <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>
-              Net Worth
-            </p>
-            <h2 className="mono-text" style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-primary)" }}>
-              ₹{formatNumber(totalUsdVal)}
-            </h2>
-          </div>
-          <div className="glass-panel" style={{ padding: "12px 24px", borderRadius: "12px", borderLeft: "4px solid #4edea3" }}>
-            <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>
-              24h Gain
-            </p>
-            <h2 className="mono-text" style={{ fontSize: "18px", fontWeight: 700, color: "#4edea3", marginTop: "4px" }}>
-              +₹{formatNumber(gainUsd)} (+{gainPercent.toFixed(2)}%)
-            </h2>
-          </div>
-        </div>
-      </header>
-
-      {/* Quick Guide Card */}
-      <section className="glass-panel fade-in" style={{
-        padding: "24px",
+      {/* Onboarding Guide Callout Panel */}
+      <section className="glass-panel" style={{
         borderRadius: "16px",
+        padding: "20px 24px",
         marginBottom: "32px",
-        border: "1px solid var(--border-glass)",
-        background: "linear-gradient(135deg, rgba(0, 102, 255, 0.04) 0%, rgba(0, 0, 0, 0) 100%)"
+        borderLeft: "4px solid var(--color-success)",
       }}>
-        <h3 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <HelpCircle size={18} style={{ color: "var(--color-primary)" }} />
-          Getting Started & Guide
-        </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-success)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Quickstart Sandbox Guide
+          </h3>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Status: Local Dev Mode</span>
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "20px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{
                 background: "var(--color-primary)",
-                color: "#fff",
+                color: "var(--color-fg-inverse)",
                 width: "20px",
                 height: "20px",
                 borderRadius: "50%",
@@ -206,7 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Claim Faucet Tokens</h4>
             </div>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              Use the <strong>Developer Faucet</strong> card below to instantly claim 100 MYC, 100 USDC, and 100 ONYX test tokens.
+              Use the <strong>Developer Faucet</strong> card below to instantly claim 100 MYC, 100 INR, and 100 ONYX test tokens.
             </p>
           </div>
 
@@ -214,7 +178,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{
                 background: "var(--color-primary)",
-                color: "#fff",
+                color: "var(--color-fg-inverse)",
                 width: "20px",
                 height: "20px",
                 borderRadius: "50%",
@@ -227,7 +191,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Import Custom Tokens</h4>
             </div>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              In MetaMask, click <strong>Import Token ➔ Custom Token</strong> and paste the contract addresses (shown in README) to see your balances.
+              In MetaMask, click <strong>Import Token ➔ Custom Token</strong> and paste the contract addresses to see your balances.
             </p>
           </div>
 
@@ -235,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{
                 background: "var(--color-primary)",
-                color: "#fff",
+                color: "var(--color-fg-inverse)",
                 width: "20px",
                 height: "20px",
                 borderRadius: "50%",
@@ -248,7 +212,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Swap on AMM Pool</h4>
             </div>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              Navigate to the <strong>Swap</strong> tab to trade assets. Supported liquidity pairs are <strong>MYC ➔ USDC</strong> and <strong>ONYX ➔ USDC</strong>.
+              Navigate to the <strong>Swap</strong> tab to trade assets. Supported liquidity pairs are <strong>MYC ➔ INR</strong> and <strong>ONYX ➔ INR</strong>.
             </p>
           </div>
         </div>
@@ -269,7 +233,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
               <Activity size={18} style={{ color: "var(--color-primary)" }} />
               Value Performance
             </h3>
-            <div style={{ display: "flex", gap: "4px", background: "rgba(255,255,255,0.05)", padding: "4px", borderRadius: "8px" }}>
+            <div style={{ display: "flex", gap: "4px", background: "rgba(0,0,0,0.03)", padding: "4px", borderRadius: "8px" }}>
               {["1D", "1W", "1M", "1Y", "ALL"].map((t) => (
                 <button
                   key={t}
@@ -280,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                     fontSize: "11px",
                     borderRadius: "6px",
                     background: t === timeFilter ? "var(--color-primary)" : "transparent",
-                    color: t === timeFilter ? "#0b1326" : "var(--text-muted)",
+                    color: t === timeFilter ? "var(--color-on-primary)" : "var(--text-muted)",
                     fontWeight: t === timeFilter ? 700 : 500,
                   }}
                 >
@@ -292,362 +256,227 @@ export const Dashboard: React.FC<DashboardProps> = () => {
 
           {(() => {
             const getChartPath = () => {
-              // Generate dynamic points based on portfolio total valuation
               let relativePoints = [0.90, 0.93, 0.89, 0.96, 1.02, 1.0];
               if (timeFilter === "1D") {
                 relativePoints = [0.98, 0.99, 0.96, 1.01, 1.03, 1.0];
               } else if (timeFilter === "1W") {
                 relativePoints = [0.85, 0.90, 0.88, 0.95, 1.02, 1.0];
               } else if (timeFilter === "1Y") {
-                relativePoints = [0.50, 0.65, 0.60, 0.80, 0.95, 1.0];
+                relativePoints = [0.60, 0.72, 0.85, 0.80, 0.95, 1.0];
               } else if (timeFilter === "ALL") {
-                relativePoints = [0.10, 0.30, 0.25, 0.60, 0.85, 1.0];
+                relativePoints = [0.20, 0.45, 0.52, 0.75, 0.88, 1.0];
               }
 
-              const width = 800;
-              const height = 260;
-              const padding = 40;
-              const chartHeight = height - padding * 2; // 180
-              
-              const coords = relativePoints.map((val, idx) => {
-                const x = (idx / (relativePoints.length - 1)) * width;
-                const maxVal = 1.1;
-                // Higher val = lower y coordinate
-                const y = height - padding - (val / maxVal) * chartHeight;
-                return { x, y };
-              });
+              const width = 640;
+              const height = 200;
+              const points = relativePoints.map((p) => totalValInr * p);
+              const minVal = Math.min(...points) * 0.98;
+              const maxVal = Math.max(...points) * 1.02;
+              const range = maxVal - minVal || 1;
 
-              let lineD = `M ${coords[0].x} ${coords[0].y}`;
-              for (let i = 1; i < coords.length; i++) {
-                lineD += ` L ${coords[i].x} ${coords[i].y}`;
-              }
+              const pointsStr = points
+                .map((val, idx) => {
+                  const x = (idx / (points.length - 1)) * width;
+                  const y = height - ((val - minVal) / range) * height;
+                  return `${x},${y}`;
+                })
+                .join(" ");
 
-              const areaD = `${lineD} L ${width} ${height} L 0 ${height} Z`;
-              const lastCoord = coords[coords.length - 1];
-
-              return {
-                line: lineD,
-                area: areaD,
-                circle: { cx: lastCoord.x, cy: lastCoord.y },
-                top: `${Math.max(10, lastCoord.y - 60)}px`,
-                left: `${Math.max(10, lastCoord.x - 140)}px`
-              };
+              return { pointsStr, width, height, firstY: height - ((points[0] - minVal) / range) * height };
             };
-            const chartData = getChartPath();
+
+            const chart = getChartPath();
+
             return (
-              <div style={{ height: "260px", width: "100%", position: "relative", marginTop: "16px" }}>
-                {/* SVG Area chart */}
-                <svg className="chart-glow" width="100%" height="100%" viewBox="0 0 800 260" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#00dbe9" stopOpacity="0.25" />
-                      <stop offset="95%" stopColor="#00dbe9" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {/* Grid Lines */}
-                  <line x1="0" y1="50" x2="800" y2="50" stroke="rgba(132, 148, 149, 0.08)" strokeWidth="1" />
-                  <line x1="0" y1="130" x2="800" y2="130" stroke="rgba(132, 148, 149, 0.08)" strokeWidth="1" />
-                  <line x1="0" y1="210" x2="800" y2="210" stroke="rgba(132, 148, 149, 0.08)" strokeWidth="1" />
-                  
-                  {/* Area path */}
-                  <path
-                    d={chartData.area}
-                    fill="url(#chartGradient)"
-                  />
-                  
-                  {/* Line path */}
-                  <path
-                    d={chartData.line}
-                    fill="none"
-                    stroke="var(--color-primary)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                  {/* Animated active point */}
-                  <circle cx={chartData.circle.cx} cy={chartData.circle.cy} r="5" fill="var(--color-primary)" />
-                </svg>
-                
-                {/* Interactive Tooltip Simulation */}
-                <div className="glass-panel" style={{
-                  position: "absolute",
-                  top: chartData.top,
-                  left: chartData.left,
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  border: "1px solid rgba(0, 219, 233, 0.3)",
-                  transition: "all 0.3s ease"
-                }}>
-                  <p style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>ACTIVE VALUATION</p>
-                  <p className="mono-text" style={{ fontWeight: 700, color: "var(--color-primary)" }}>
-                    ₹{formatNumber(totalUsdVal)}
-                  </p>
+              <div style={{ position: "relative" }}>
+                {/* Total Balance Hero */}
+                <div className="portfolio-header">
+                  <span className="portfolio-title">Net Portfolio Assets</span>
+                  <div className="portfolio-amount">
+                    ₹{formatNumber(totalValInr)}
+                    <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-success)", display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                      +{gainPercent}% (+₹{formatNumber(gainInr)})
+                    </span>
+                  </div>
                 </div>
+
+                {isWalletEmpty ? (
+                  <div style={{
+                    height: "200px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px dashed var(--border-glass)",
+                    borderRadius: "12px",
+                    color: "var(--text-muted)",
+                    fontSize: "13px"
+                  }}>
+                    No assets in wallet. Use the Developer Faucet card below to mint test tokens.
+                  </div>
+                ) : (
+                  <div style={{ width: "100%", overflow: "hidden" }}>
+                    <svg viewBox={`0 0 ${chart.width} ${chart.height}`} style={{ width: "100%", overflow: "visible" }}>
+                      <defs>
+                        <linearGradient id="gradient-area" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-accent)" stopOpacity="0.2" />
+                          <stop offset="95%" stopColor="var(--color-accent)" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Area Under Curve */}
+                      <path
+                        d={`M 0,${chart.height} L 0,${chart.firstY} L ${chart.pointsStr.replace(/,/g, " ")} L ${chart.width},${chart.height} Z`}
+                        fill="url(#gradient-area)"
+                      />
+
+                      {/* Stroke Line */}
+                      <polyline
+                        fill="none"
+                        stroke="var(--color-accent)"
+                        strokeWidth="3.5"
+                        points={chart.pointsStr}
+                        className="chart-glow"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                )}
               </div>
             );
           })()}
         </section>
 
-        {/* Asset Allocation Donut Card (col-span-4) */}
-        <section className="glass-panel grid-col-4" style={{
-          borderRadius: "16px",
-          padding: "24px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <h3 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Activity size={18} style={{ color: "var(--color-primary)" }} />
+        {/* Allocation Sidebar Card (col-span-4) */}
+        <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Zap size={16} style={{ color: "var(--color-primary)" }} />
             Asset Allocation
           </h3>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyItems: "center" }}>
-            <div style={{ position: "relative", width: "160px", height: "160px", marginBottom: "24px" }}>
-              <svg className="donut-svg" width="100%" height="100%" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
-                {/* Empty base circle */}
-                <circle cx="18" cy="18" r="16" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
-                
-                {!isWalletEmpty ? (
-                  <>
-                    {/* MYC Segment */}
-                    {mycPercent > 0 && (
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
-                        fill="transparent"
-                        stroke="var(--color-primary)"
-                        strokeWidth="4"
-                        strokeDasharray={`${mycPercent} 100`}
-                        strokeDashoffset={mycOffset}
-                      />
-                    )}
-                    {/* USDC Segment */}
-                    {usdcPercent > 0 && (
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
-                        fill="transparent"
-                        stroke="var(--color-secondary)"
-                        strokeWidth="4"
-                        strokeDasharray={`${usdcPercent} 100`}
-                        strokeDashoffset={usdcOffset}
-                      />
-                    )}
-                    {/* ONYX Segment */}
-                    {onyxPercent > 0 && (
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
-                        fill="transparent"
-                        stroke="var(--color-accent)"
-                        strokeWidth="4"
-                        strokeDasharray={`${onyxPercent} 100`}
-                        strokeDashoffset={onyxOffset}
-                      />
-                    )}
-                    {/* ETH Segment */}
-                    {ethPercent > 0 && (
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
-                        fill="transparent"
-                        stroke="rgba(255,255,255,0.25)"
-                        strokeWidth="4"
-                        strokeDasharray={`${ethPercent} 100`}
-                        strokeDashoffset={ethOffset}
-                      />
-                    )}
-                  </>
-                ) : null}
-              </svg>
-              <div style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center"
-              }}>
-                <p style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase" }}>Primary</p>
-                <p className="mono-text" style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-primary)" }}>
-                  {isWalletEmpty ? "N/A" : mycPercent >= ethPercent && mycPercent >= usdcPercent && mycPercent >= onyxPercent ? "MYC" : onyxPercent >= ethPercent && onyxPercent >= usdcPercent ? "ONYX" : ethPercent >= usdcPercent ? "ETH" : "USDC"}
-                </p>
-              </div>
+          {isWalletEmpty ? (
+            <div style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px dashed var(--border-glass)",
+              borderRadius: "12px",
+              color: "var(--text-muted)",
+              fontSize: "13px",
+              padding: "24px"
+            }}>
+              No allocation data available.
             </div>
-
-            {/* Asset Legend list */}
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px", flex: 1, justifyContent: "center" }}>
               
-              {/* MYC Row */}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-primary)" }} />
-                  <span style={{ fontWeight: 600 }}>MyCoin (MYC)</span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : mycPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(mycVal, 0)}</span>
-                </div>
-              </div>
-
-              {/* ONYX Row */}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-accent)" }} />
-                  <span style={{ fontWeight: 600 }}>Onyx (ONYX)</span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : onyxPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(onyxVal, 0)}</span>
-                </div>
-              </div>
-
-              {/* USDC Row */}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-secondary)" }} />
-                  <span style={{ fontWeight: 600 }}>Indian Rupee (INR)</span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : usdcPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(usdcVal, 0)}</span>
-                </div>
-              </div>
-
-              {/* ETH Row */}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "rgba(255,255,255,0.25)" }} />
-                  <span style={{ fontWeight: 600 }}>Ethereum (ETH)</span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontWeight: 700 }}>{isWalletEmpty ? "0.0" : ethPercent.toFixed(1)}%</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "11px", marginLeft: "8px" }}>₹{formatNumber(ethVal, 0)}</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </section>
-
-        {/* Sandbox Developer Faucet Card (col-span-4) */}
-        {contractConfigured && (
-          <section className="glass-panel grid-col-4" style={{
-            borderRadius: "16px",
-            padding: "24px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between"
-          }}>
-            <div>
-              <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                <Zap size={16} style={{ color: "var(--color-primary)" }} />
-                Developer Faucet
-              </h3>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-                Get instant test liquidity: claim 100 MYC, 100 Mock INR, and 100 ONYX to experiment with trades.
-              </p>
-            </div>
-            
-            <div style={{ marginTop: "16px" }}>
-              {parseFloat(ethBalance) < 0.0005 && (
+              {/* Donut Chart SVG */}
+              <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+                <svg width="140" height="140" viewBox="0 0 42 42" style={{ transform: "rotate(-90deg)" }}>
+                  {/* Segment: MYC */}
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-primary)" strokeWidth="4.5"
+                    strokeDasharray={`${mycPercent} ${100 - mycPercent}`} strokeDashoffset={mycOffset} />
+                  {/* Segment: INR */}
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-surface2)" strokeWidth="4.5"
+                    strokeDasharray={`${inrPercent} ${100 - inrPercent}`} strokeDashoffset={inrOffset} />
+                  {/* Segment: ONYX */}
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-accent)" strokeWidth="4.5"
+                    strokeDasharray={`${onyxPercent} ${100 - onyxPercent}`} strokeDashoffset={onyxOffset} />
+                  {/* Segment: ETH */}
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#8c8d9e" strokeWidth="4.5"
+                    strokeDasharray={`${ethPercent} ${100 - ethPercent}`} strokeDashoffset={ethOffset} />
+                </svg>
+                
+                {/* Center Badge */}
                 <div style={{
-                  background: "rgba(255, 166, 0, 0.08)",
-                  border: "1px solid rgba(255, 166, 0, 0.2)",
-                  color: "#decba4",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  fontSize: "11px",
-                  lineHeight: "1.4",
-                  marginBottom: "12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px"
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center"
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700 }}>
-                    <AlertTriangle size={14} style={{ color: "orange" }} />
-                    <span>0 ETH Gas Balance</span>
-                  </div>
-                  <span>
-                    You need Sepolia ETH in your wallet to cover network transaction fees. Get test ETH here:
-                  </span>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
-                    <a
-                      href="https://cloud.google.com/application/web3/faucets/ethereum-sepolia"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: 600 }}
-                    >
-                      Google Faucet
-                    </a>
-                    <a
-                      href="https://faucet.quicknode.com/drip"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: 600 }}
-                    >
-                      QuickNode Faucet
-                    </a>
-                  </div>
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", fontStyle: "italic" }}>
-                    Or send gas from your MetaMask (Account 1) to this address: <br/>
-                    <strong className="mono-text" style={{ wordBreak: "break-all", color: "var(--text-main)", fontSize: "9px" }}>{address}</strong>
-                  </span>
+                  <span style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Assets</span>
+                  <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-main)" }}>4 Pairs</p>
                 </div>
-              )}
+              </div>
 
-              {cooldownLeft > 0 ? (
-                <div className="mono-text" style={{
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "var(--color-primary)",
-                  background: "rgba(0, 219, 233, 0.08)",
-                  border: "1px solid rgba(0, 219, 233, 0.2)",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px"
-                }}>
-                  <Clock size={12} />
-                  Cooldown: {formatCooldown(cooldownLeft)}
+              {/* Legends list */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8c8d9e" }} />
+                  <span>ETH ({ethPercent.toFixed(0)}%)</span>
                 </div>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleClaimFaucet}
-                  disabled={faucetLoading || parseFloat(ethBalance) < 0.0005}
-                  style={{ width: "100%", padding: "10px 0", borderRadius: "10px", fontWeight: 700 }}
-                >
-                  {faucetLoading ? "Dispensing..." : "Claim Faucet Funds"}
-                </button>
-              )}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-primary)" }} />
+                  <span>MYC ({mycPercent.toFixed(0)}%)</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-surface2)" }} />
+                  <span>INR ({inrPercent.toFixed(0)}%)</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-accent)" }} />
+                  <span>ONYX ({onyxPercent.toFixed(0)}%)</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Grid: Developer Faucet & Asset Table */}
+      <div className="dashboard-grid" style={{ marginTop: "32px" }}>
+        
+        {/* Developer Sandbox Faucet (col-span-4) */}
+        <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Clock size={16} style={{ color: "var(--color-primary)" }} />
+            Developer Sandbox Faucet
+          </h3>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.5", marginBottom: "20px" }}>
+            Claim 100 test MYC, 100 test INR, and 100 test ONYX tokens once every 24 hours to test send and swap features.
+          </p>
+
+          {!contractConfigured ? (
+            <div style={{ color: "var(--color-danger)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <AlertTriangle size={14} />
+              Faucet contracts not configured. Check environment variables.
+            </div>
+          ) : (
+            <div>
+              <button
+                className="btn btn-primary"
+                onClick={handleClaimFaucet}
+                disabled={faucetLoading || cooldownLeft > 0}
+                style={{ width: "100%", padding: "14px", fontWeight: 700 }}
+              >
+                {faucetLoading ? "Requesting Tokens..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
+              </button>
 
               {faucetMessage && (
-                <p style={{
-                  marginTop: "8px",
-                  fontSize: "11px",
-                  textAlign: "center",
-                  color: faucetMessage.error ? "rgba(255, 0, 85, 0.85)" : "var(--color-primary)",
-                  fontWeight: 600
+                <div style={{
+                  marginTop: "16px",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  background: faucetMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
+                  border: faucetMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
+                  color: faucetMessage.error ? "var(--color-danger)" : "var(--color-info)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
                 }}>
-                  {faucetMessage.text}
-                </p>
+                  <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                  <span>{faucetMessage.text}</span>
+                </div>
               )}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
-        {/* Assets & Live Market Rates Table (col-span-8) */}
-        <section className="glass-panel grid-col-8" style={{
-          borderRadius: "16px",
-          overflow: "hidden"
-        }}>
+        {/* Asset Table List (col-span-8) */}
+        <section className="glass-panel grid-col-8" style={{ borderRadius: "16px", padding: "0", overflow: "hidden" }}>
           <div style={{
             padding: "16px 24px",
             borderBottom: "1px solid var(--border-glass)",
@@ -656,11 +485,11 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             alignItems: "center"
           }}>
             <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-              <ShieldCheck size={16} style={{ color: "var(--color-primary)" }} />
+              <ShieldCheckIcon size={16} style={{ color: "var(--color-primary)" }} />
               Asset Portfolios & Live Market Feed
             </h3>
             <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4edea3", display: "inline-block" }} />
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
               Synced from Pool Reserves
             </span>
           </div>
@@ -668,12 +497,12 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
-                <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
+                <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
                   <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cryptocurrency</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (USD)</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (INR)</th>
                   <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>24h Change</th>
                   <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Tokens)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (USD)</th>
+                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (INR)</th>
                   <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Trend</th>
                 </tr>
               </thead>
@@ -682,18 +511,18 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "rgba(255,255,255,0.25)" }} />
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8c8d9e" }} />
                       Ethereum (ETH)
                     </div>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethPrice)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(78, 222, 163, 0.1)", color: "#4edea3", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
+                    <span style={{ background: "rgba(47, 138, 91, 0.1)", color: "var(--color-success)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
                   </td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(ethBalance || "0"), 4)}</td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke="#4edea3" fill="none" strokeWidth="2">
+                    <svg width="64" height="16" stroke="var(--color-success)" fill="none" strokeWidth="2">
                       <path d="M 0 12 L 15 10 L 30 14 L 45 4 L 64 2" />
                     </svg>
                   </td>
@@ -709,8 +538,8 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ 
-                      background: mycPrice >= (0.50 * INR_MULTIPLIER) ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
-                      color: mycPrice >= (0.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      background: mycPrice >= (0.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
+                      color: mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
                       padding: "2px 6px", 
                       borderRadius: "4px", 
                       fontSize: "11px" 
@@ -721,7 +550,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(mycBalance || "0"), 2)}</td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={mycPrice >= (0.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                    <svg width="64" height="16" stroke={mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
                       <path d={mycPrice >= (0.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
                     </svg>
                   </td>
@@ -737,8 +566,8 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <span style={{ 
-                      background: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "rgba(78, 222, 163, 0.1)" : "rgba(255, 0, 85, 0.1)", 
-                      color: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)", 
+                      background: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
+                      color: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
                       padding: "2px 6px", 
                       borderRadius: "4px", 
                       fontSize: "11px" 
@@ -749,25 +578,25 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(onyxBalance || "0"), 2)}</td>
                   <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "#4edea3" : "rgba(255, 0, 85, 0.85)"} fill="none" strokeWidth="2">
+                    <svg width="64" height="16" stroke={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
                       <path d={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
                     </svg>
                   </td>
                 </tr>
-                {/* USDC Row */}
+                {/* INR Row */}
                 <tr>
                   <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-secondary)" }} />
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--color-surface2)" }} />
                       Indian Rupee (INR)
                     </div>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(usdcPrice, 2)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrPrice, 2)}</td>
                   <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
+                    <span style={{ background: "rgba(0,0,0,0.03)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
                   </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(usdcBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(usdcVal)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(inrBalance || "0"), 2)}</td>
+                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrVal)}</td>
                   <td style={{ padding: "14px 18px" }}>
                     <svg width="64" height="16" stroke="var(--text-muted)" fill="none" strokeWidth="2">
                       <path d="M 0 8 L 20 8 L 40 8 L 64 8" />
@@ -778,7 +607,6 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </table>
           </div>
         </section>
-
       </div>
 
       {/* Network Latency Status Footer */}
@@ -800,7 +628,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           borderRadius: "100px",
           fontSize: "12px"
         }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4edea3", display: "inline-block" }} />
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
           <span style={{ fontWeight: 600 }}>Ethereum Sepolia</span>
           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>12ms</span>
         </div>
@@ -815,7 +643,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           fontSize: "12px",
           opacity: 0.6
         }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4edea3", display: "inline-block" }} />
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-success)", display: "inline-block" }} />
           <span style={{ fontWeight: 600 }}>Polygon Amoy</span>
           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>24ms</span>
         </div>

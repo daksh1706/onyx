@@ -1,19 +1,19 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { MyCoin, MockUSDC, CustomToken, Faucet } from "../typechain-types";
+import { MyCoin, MockINR, CustomToken, Faucet } from "../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("Faucet Contract", function () {
   let myCoin: MyCoin;
-  let mockUsdc: MockUSDC;
+  let mockInr: MockINR;
   let customToken: CustomToken;
   let faucet: Faucet;
   let owner: HardhatEthersSigner;
   let user: HardhatEthersSigner;
 
   const FAUCET_MYC_AMOUNT = ethers.parseEther("100");
-  const FAUCET_USDC_AMOUNT = ethers.parseUnits("100", 6);
+  const FAUCET_INR_AMOUNT = ethers.parseUnits("100", 6);
   const FAUCET_CUSTOM_AMOUNT = ethers.parseEther("100");
 
   beforeEach(async function () {
@@ -22,8 +22,8 @@ describe("Faucet Contract", function () {
     const MyCoinFactory = await ethers.getContractFactory("MyCoin");
     myCoin = (await MyCoinFactory.deploy(ethers.parseEther("1000000"), owner.address)) as MyCoin;
 
-    const MockUSDCFactory = await ethers.getContractFactory("MockUSDC");
-    mockUsdc = (await MockUSDCFactory.deploy()) as MockUSDC;
+    const MockINRFactory = await ethers.getContractFactory("MockINR");
+    mockInr = (await MockINRFactory.deploy()) as MockINR;
 
     const CustomTokenFactory = await ethers.getContractFactory("CustomToken");
     customToken = (await CustomTokenFactory.deploy("Onyx", "ONYX", ethers.parseEther("1000000"))) as CustomToken;
@@ -31,21 +31,21 @@ describe("Faucet Contract", function () {
     const FaucetFactory = await ethers.getContractFactory("Faucet");
     faucet = (await FaucetFactory.deploy(
       await myCoin.getAddress(),
-      await mockUsdc.getAddress(),
+      await mockInr.getAddress(),
       await customToken.getAddress(),
       owner.address
     )) as Faucet;
 
     // Fund the faucet with enough tokens
     await myCoin.connect(owner).mint(await faucet.getAddress(), ethers.parseEther("10000"));
-    await mockUsdc.connect(owner).mint(await faucet.getAddress(), ethers.parseUnits("10000", 6));
+    await mockInr.connect(owner).mint(await faucet.getAddress(), ethers.parseUnits("10000", 6));
     await customToken.connect(owner).transfer(await faucet.getAddress(), ethers.parseEther("10000"));
   });
 
   describe("Deployment", function () {
     it("Should set the correct token addresses", async function () {
       expect(await faucet.myCoin()).to.equal(await myCoin.getAddress());
-      expect(await faucet.mockUsdc()).to.equal(await mockUsdc.getAddress());
+      expect(await faucet.mockInr()).to.equal(await mockInr.getAddress());
       expect(await faucet.customToken()).to.equal(await customToken.getAddress());
     });
   });
@@ -53,17 +53,17 @@ describe("Faucet Contract", function () {
   describe("Requesting Tokens", function () {
     it("Should dispense correct amounts to the user", async function () {
       const balanceMycBefore = await myCoin.balanceOf(user.address);
-      const balanceUsdcBefore = await mockUsdc.balanceOf(user.address);
+      const balanceInrBefore = await mockInr.balanceOf(user.address);
       const balanceCustomBefore = await customToken.balanceOf(user.address);
 
       await faucet.connect(user).requestTokens();
 
       const balanceMycAfter = await myCoin.balanceOf(user.address);
-      const balanceUsdcAfter = await mockUsdc.balanceOf(user.address);
+      const balanceInrAfter = await mockInr.balanceOf(user.address);
       const balanceCustomAfter = await customToken.balanceOf(user.address);
 
       expect(balanceMycAfter - balanceMycBefore).to.equal(FAUCET_MYC_AMOUNT);
-      expect(balanceUsdcAfter - balanceUsdcBefore).to.equal(FAUCET_USDC_AMOUNT);
+      expect(balanceInrAfter - balanceInrBefore).to.equal(FAUCET_INR_AMOUNT);
       expect(balanceCustomAfter - balanceCustomBefore).to.equal(FAUCET_CUSTOM_AMOUNT);
     });
 
@@ -87,13 +87,13 @@ describe("Faucet Contract", function () {
       const FaucetFactory = await ethers.getContractFactory("Faucet");
       const emptyFaucet = (await FaucetFactory.deploy(
         await myCoin.getAddress(),
-        await mockUsdc.getAddress(),
+        await mockInr.getAddress(),
         await customToken.getAddress(),
         owner.address
       )) as Faucet;
 
-      // Only fund USDC and Custom
-      await mockUsdc.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
+      // Only fund INR and Custom
+      await mockInr.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
       await customToken.connect(owner).transfer(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
 
       await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
@@ -102,11 +102,11 @@ describe("Faucet Contract", function () {
       );
     });
 
-    it("Should fail if the faucet has insufficient USDC", async function () {
+    it("Should fail if the faucet has insufficient INR", async function () {
       const FaucetFactory = await ethers.getContractFactory("Faucet");
       const emptyFaucet = (await FaucetFactory.deploy(
         await myCoin.getAddress(),
-        await mockUsdc.getAddress(),
+        await mockInr.getAddress(),
         await customToken.getAddress(),
         owner.address
       )) as Faucet;
@@ -125,14 +125,14 @@ describe("Faucet Contract", function () {
       const FaucetFactory = await ethers.getContractFactory("Faucet");
       const emptyFaucet = (await FaucetFactory.deploy(
         await myCoin.getAddress(),
-        await mockUsdc.getAddress(),
+        await mockInr.getAddress(),
         await customToken.getAddress(),
         owner.address
       )) as Faucet;
 
-      // Only fund MYC and USDC
+      // Only fund MYC and INR
       await myCoin.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseEther("1000"));
-      await mockUsdc.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
+      await mockInr.connect(owner).mint(await emptyFaucet.getAddress(), ethers.parseUnits("1000", 6));
 
       await expect(emptyFaucet.connect(user).requestTokens()).to.be.revertedWithCustomError(
         emptyFaucet,

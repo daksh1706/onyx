@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useWallet } from "../context/WalletContext";
+import { useWallet, verifyBiometrics } from "../context/WalletContext";
 import { Key, PlusCircle, Import, Layers, ShieldAlert, Eye, EyeOff, KeyRound } from "lucide-react";
 
 export const WalletInit: React.FC = () => {
@@ -30,6 +30,24 @@ export const WalletInit: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyMnemonic = async () => {
+    const authenticated = await verifyBiometrics("Copy mnemonic seed phrase to clipboard");
+    if (authenticated) {
+      handleCopy(mnemonic || "");
+    }
+  };
+
+  const handleToggleKeyVisibility = async () => {
+    if (!showKey) {
+      const authenticated = await verifyBiometrics("Reveal private key");
+      if (authenticated) {
+        setShowKey(true);
+      }
+    } else {
+      setShowKey(false);
+    }
   };
 
   const validatePassword = (): boolean => {
@@ -345,7 +363,7 @@ export const WalletInit: React.FC = () => {
                     {mnemonic}
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="btn btn-secondary" onClick={() => handleCopy(mnemonic)} style={{ flex: 1 }}>
+                    <button className="btn btn-secondary" onClick={handleCopyMnemonic} style={{ flex: 1 }}>
                       {copied ? "Copied!" : "Copy Seed Phrase"}
                     </button>
                   </div>
@@ -365,7 +383,7 @@ export const WalletInit: React.FC = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowKey(!showKey)}
+                      onClick={handleToggleKeyVisibility}
                       style={{
                         position: "absolute",
                         right: "12px",

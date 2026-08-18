@@ -54,9 +54,9 @@ export const LockScreen: React.FC = () => {
         textAlign: "center",
         padding: "32px",
         borderRadius: "24px",
-        boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-        background: "rgba(22, 23, 26, 0.65)"
+        boxShadow: "var(--shadow-deep)",
+        border: "1px solid var(--border-glass)",
+        background: "var(--bg-card)"
       }}>
         {!showResetConfirm ? (
           <form onSubmit={handleUnlock}>
@@ -64,15 +64,15 @@ export const LockScreen: React.FC = () => {
               width: "64px",
               height: "64px",
               borderRadius: "50%",
-              background: "rgba(59, 130, 246, 0.1)",
-              border: "1px solid rgba(59, 130, 246, 0.3)",
+              background: "var(--color-primary-glow)",
+              border: "1px solid var(--border-glass)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 20px auto",
-              boxShadow: "0 0 20px rgba(59, 130, 246, 0.2)"
+              boxShadow: "var(--shadow-neon)"
             }}>
-              <Shield size={28} style={{ color: "var(--color-primary)" }} />
+              <Shield size={28} style={{ color: "var(--color-accent)" }} />
             </div>
 
             <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px", color: "var(--text-main)" }}>
@@ -118,7 +118,7 @@ export const LockScreen: React.FC = () => {
 
             {error && (
               <div style={{
-                color: "var(--color-accent)",
+                color: "var(--color-danger)",
                 fontSize: "13px",
                 fontWeight: 600,
                 marginTop: "-12px",
@@ -144,7 +144,7 @@ export const LockScreen: React.FC = () => {
               style={{
                 background: "none",
                 border: "none",
-                color: "rgba(255, 0, 85, 0.65)",
+                color: "var(--color-danger)",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -160,22 +160,22 @@ export const LockScreen: React.FC = () => {
               width: "64px",
               height: "64px",
               borderRadius: "50%",
-              background: "rgba(255, 0, 85, 0.1)",
-              border: "1px solid rgba(255, 0, 85, 0.3)",
+              background: "rgba(161, 61, 52, 0.1)",
+              border: "1px solid var(--border-glass)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 20px auto",
-              boxShadow: "0 0 20px rgba(255, 0, 85, 0.15)"
+              boxShadow: "var(--shadow-neon)"
             }}>
-              <AlertTriangle size={28} style={{ color: "rgba(255, 0, 85, 0.85)" }} />
+              <AlertTriangle size={28} style={{ color: "var(--color-danger)" }} />
             </div>
 
             <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px", color: "var(--text-main)" }}>
               Reset Local Wallet?
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "24px", lineHeight: "1.5" }}>
-              WARNING: This will permanently wipe your encrypted seed phrases from this browser. 
+              WARNING: This will permanently wipe your encrypted seed phrases from this device. 
               If you do not have your recovery phrase saved, you will lose access to this wallet forever.
             </p>
 
@@ -185,8 +185,8 @@ export const LockScreen: React.FC = () => {
                 className="btn"
                 onClick={handleReset}
                 style={{
-                  background: "rgba(255, 0, 85, 0.85)",
-                  color: "#fff",
+                  background: "var(--color-danger)",
+                  color: "var(--color-fg-inverse)",
                   padding: "12px",
                   borderRadius: "12px",
                   border: "none",

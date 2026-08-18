@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Onyx Wallet</string>
+    <string name="title_activity_main">Onyx Wallet</string>
+    <string name="package_name">com.onyx.wallet</string>
+    <string name="custom_url_scheme">com.onyx.wallet</string>
+</resources>

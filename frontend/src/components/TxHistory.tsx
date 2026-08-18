@@ -8,13 +8,13 @@ export const TxHistory: React.FC = () => {
   const getIcon = (type: string) => {
     switch (type) {
       case "Send":
-        return <ArrowUpRight size={16} style={{ color: "#ff4da6" }} />;
+        return <ArrowUpRight size={16} style={{ color: "var(--color-danger)" }} />;
       case "Receive":
-        return <ArrowDownLeft size={16} style={{ color: "var(--color-secondary)" }} />;
+        return <ArrowDownLeft size={16} style={{ color: "var(--color-success)" }} />;
       case "Swap":
-        return <RefreshCcw size={16} style={{ color: "var(--color-primary)" }} />;
+        return <RefreshCcw size={16} style={{ color: "var(--color-accent)" }} />;
       case "Faucet":
-        return <Gift size={16} style={{ color: "orange" }} />;
+        return <Gift size={16} style={{ color: "var(--color-warning)" }} />;
       default:
         return <ExternalLink size={16} />;
     }
@@ -39,7 +39,7 @@ export const TxHistory: React.FC = () => {
       ) : transactions.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 10px" }}>
           <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>No transactions found for this address.</p>
-          <p style={{ color: "rgba(255,255,255,0.15)", fontSize: "12px", marginTop: "4px" }}>
+          <p style={{ color: "var(--text-muted)", opacity: 0.7, fontSize: "12px", marginTop: "4px" }}>
             Try claiming from the faucet or making a swap to create on-chain history.
           </p>
         </div>
@@ -98,7 +98,7 @@ export const TxHistory: React.FC = () => {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "4px",
-                        color: "var(--color-secondary)",
+                        color: "var(--color-accent)",
                         textDecoration: "none",
                         fontSize: "12px"
                       }}
