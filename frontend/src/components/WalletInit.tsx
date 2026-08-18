@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useWallet, verifyBiometrics } from "../context/WalletContext";
-import { Key, PlusCircle, Import, Layers, ShieldAlert, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Key, PlusCircle, ShieldAlert, Eye, EyeOff, KeyRound } from "lucide-react";
 
 export const WalletInit: React.FC = () => {
   const {
@@ -243,7 +243,7 @@ export const WalletInit: React.FC = () => {
         gap: "4px",
         flexWrap: "wrap"
       }}>
-        {(["login", "create", "import-seed", "import-key", "metamask"] as const).map((tab) => (
+        {(["login", "create"] as const).map((tab) => (
           <button
             key={tab}
             className="btn"
@@ -266,10 +266,7 @@ export const WalletInit: React.FC = () => {
           >
             {tab === "login" && <Key size={14} style={{ marginRight: "4px" }} />}
             {tab === "create" && <PlusCircle size={14} style={{ marginRight: "4px" }} />}
-            {tab === "import-seed" && <Import size={14} style={{ marginRight: "4px" }} />}
-            {tab === "import-key" && <Key size={14} style={{ marginRight: "4px" }} />}
-            {tab === "metamask" && <Layers size={14} style={{ marginRight: "4px" }} />}
-            {tab === "login" ? "Login" : tab === "create" ? "Create Wallet" : tab === "import-seed" ? "Import Seed" : tab === "import-key" ? "Import Key" : "MetaMask"}
+            {tab === "login" ? "Login" : "Create Wallet"}
           </button>
         ))}
       </div>
