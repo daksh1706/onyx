@@ -3,15 +3,15 @@ import { useWallet } from "../context/WalletContext";
 import { ethers, Contract, parseEther, parseUnits, isAddress } from "ethers";
 import { CONTRACT_ADDRESSES, MYCOIN_ABI, MOCKINR_ABI } from "../constants/contracts";
 import { QRCodeSVG } from "qrcode.react";
-import { Send, Download, ArrowRightLeft, CheckCircle2, AlertCircle, HelpCircle, QrCode } from "lucide-react";
+import { Send, Download, ArrowRightLeft, CheckCircle2, AlertCircle, HelpCircle, QrCode, Landmark, Landmark as BankIcon, CreditCard, Smartphone } from "lucide-react";
 import { BarcodeScanner, BarcodeFormat } from "@capacitor-mlkit/barcode-scanning";
 import { Capacitor } from "@capacitor/core";
 
 interface SendReceiveProps {
-  initialMode?: "send" | "receive";
+  initialMode?: "send" | "receive" | "deposit";
 }
 
-export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "send" }) => {
+export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "deposit" }) => {
   const {
     address,
     ethBalance,
@@ -19,16 +19,35 @@ export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "send" }
     inrBalance,
     onyxBalance,
     sendTokens,
+    depositINR,
     provider,
     contractConfigured,
+    banks,
   } = useWallet();
 
-  const [activeMode, setActiveMode] = useState<"send" | "receive">(initialMode);
+  const [activeMode, setActiveMode] = useState<"send" | "receive" | "deposit">(initialMode);
 
   useEffect(() => {
     setActiveMode(initialMode);
   }, [initialMode]);
   
+  // Deposit state
+  const [bankAccount, setBankAccount] = useState<string>("");
+  const [depositAmount, setDepositAmount] = useState<string>("");
+  const [depositMethod, setDepositMethod] = useState<"UPI" | "NetBanking" | "Card">("UPI");
+  const [depositLoading, setDepositLoading] = useState<boolean>(false);
+  const [depositMessage, setDepositMessage] = useState<{ text: string; error: boolean; txHash?: string } | null>(null);
+
+  // Default to first linked bank or primary
+  useEffect(() => {
+    if (banks && banks.length > 0) {
+      const primary = banks.find(b => b.isPrimary) || banks[0];
+      setBankAccount(`${primary.bankName} (${primary.accountNumber})`);
+    } else {
+      setBankAccount("");
+    }
+  }, [banks]);
+
   // Send state
   const [recipient, setRecipient] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
@@ -90,6 +109,46 @@ export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "send" }
 
     return () => clearTimeout(delayDebounce);
   }, [recipient, amount, token, estimateGasFee]);
+
+  const handleDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDepositMessage(null);
+
+    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+      setDepositMessage({ text: "Please enter a deposit amount greater than 0.", error: true });
+      return;
+    }
+
+    setDepositLoading(true);
+    try {
+      setDepositMessage({ text: "Initiating bank transfer authorization...", error: false });
+      const tx = await depositINR(depositAmount);
+      
+      setDepositMessage({
+        text: "Transaction submitted! Waiting for bank clearance...",
+        error: false,
+        txHash: tx.hash
+      });
+
+      await tx.wait();
+      
+      setDepositMessage({
+        text: `Successfully deposited ₹${parseFloat(depositAmount).toLocaleString()} from your bank account!`,
+        error: false,
+        txHash: tx.hash
+      });
+      setDepositAmount("");
+    } catch (err: any) {
+      console.error("Bank deposit failed:", err);
+      let errMsg = "Bank deposit failed.";
+      if (err.message && err.message.includes("user rejected")) {
+        errMsg = "Deposit signature rejected.";
+      }
+      setDepositMessage({ text: errMsg, error: true });
+    } finally {
+      setDepositLoading(false);
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,39 +246,247 @@ export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "send" }
         background: "rgba(0, 0, 0, 0.04)",
         borderRadius: "12px",
         padding: "4px",
-        marginBottom: "24px"
+        marginBottom: "24px",
+        gap: "4px"
       }}>
         <button
+          type="button"
+          className="btn"
+          onClick={() => setActiveMode("deposit")}
+          style={{
+            flex: 1,
+            background: activeMode === "deposit" ? "var(--color-primary)" : "transparent",
+            color: activeMode === "deposit" ? "var(--color-on-primary)" : "var(--text-muted)",
+            borderRadius: "10px",
+            boxShadow: "none",
+            fontSize: "12px",
+            fontWeight: 700,
+            padding: "8px 4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px"
+          }}
+        >
+          <Landmark size={14} />
+          Deposit
+        </button>
+        <button
+          type="button"
           className="btn"
           onClick={() => setActiveMode("send")}
           style={{
             flex: 1,
             background: activeMode === "send" ? "var(--color-primary)" : "transparent",
-            color: activeMode === "send" ? "var(--color-on-primary)" : "var(--color-fg-muted)",
+            color: activeMode === "send" ? "var(--color-on-primary)" : "var(--text-muted)",
             borderRadius: "10px",
-            boxShadow: "none"
+            boxShadow: "none",
+            fontSize: "12px",
+            fontWeight: 700,
+            padding: "8px 4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px"
           }}
         >
-          <Send size={16} />
-          Send Assets
+          <Send size={14} />
+          Send
         </button>
         <button
+          type="button"
           className="btn"
           onClick={() => setActiveMode("receive")}
           style={{
             flex: 1,
             background: activeMode === "receive" ? "var(--color-primary)" : "transparent",
-            color: activeMode === "receive" ? "var(--color-on-primary)" : "var(--color-fg-muted)",
+            color: activeMode === "receive" ? "var(--color-on-primary)" : "var(--text-muted)",
             borderRadius: "10px",
-            boxShadow: "none"
+            boxShadow: "none",
+            fontSize: "12px",
+            fontWeight: 700,
+            padding: "8px 4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px"
           }}
         >
-          <Download size={16} />
-          Receive Assets
+          <Download size={14} style={{ transform: "rotate(180deg)" }} />
+          Receive
         </button>
       </div>
 
-      {activeMode === "send" ? (
+      {activeMode === "deposit" ? (
+        <form onSubmit={handleDeposit} className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <p style={{ margin: 0, fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.4 }}>
+            Directly deposit INR from your connected Indian bank account to your on-chain wallet for crypto trading.
+          </p>
+
+          {/* Connected Bank Selector */}
+          <div className="form-group">
+            <label className="form-label">Connected Bank Account</label>
+            {banks.length === 0 ? (
+              <div style={{
+                background: "rgba(255, 170, 0, 0.08)",
+                border: "1px dashed rgba(255, 170, 0, 0.3)",
+                color: "#ffca58",
+                padding: "12px 14px",
+                borderRadius: "12px",
+                fontSize: "12px",
+                lineHeight: 1.4
+              }}>
+                No bank account linked yet. Please link your bank account in <strong>Profile & Settings</strong> to enable INR deposits.
+              </div>
+            ) : (
+              <select
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+                className="form-input"
+                style={{
+                  background: "rgba(0,0,0,0.2)",
+                  border: "1px solid var(--border-glass)",
+                  color: "var(--text-main)",
+                  padding: "12px",
+                  borderRadius: "12px"
+                }}
+              >
+                {banks.map((b) => (
+                  <option key={b._id} value={`${b.bankName} (${b.accountNumber})`}>
+                    {b.bankName} — {b.accountNumber} {b.isPrimary ? "(Primary)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Deposit Method */}
+          <div className="form-group">
+            <label className="form-label">Deposit Method</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              {[
+                { id: "UPI", label: "UPI", icon: <Smartphone size={14} /> },
+                { id: "NetBanking", label: "NetBanking", icon: <BankIcon size={14} /> },
+                { id: "Card", label: "Card", icon: <CreditCard size={14} /> }
+              ].map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  className="btn"
+                  onClick={() => setDepositMethod(m.id as any)}
+                  style={{
+                    flex: 1,
+                    background: depositMethod === m.id ? "rgba(190, 194, 255, 0.1)" : "rgba(0,0,0,0.03)",
+                    border: depositMethod === m.id ? "1px solid var(--color-primary)" : "1px solid var(--border-glass)",
+                    color: depositMethod === m.id ? "var(--color-primary)" : "var(--text-muted)",
+                    borderRadius: "12px",
+                    padding: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    fontSize: "12px"
+                  }}
+                >
+                  {m.icon}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amount input with quick select pills */}
+          <div className="form-group">
+            <label className="form-label">Deposit Amount (INR)</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type="number"
+                step="any"
+                className="form-input"
+                placeholder="₹0.00"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                required
+                style={{ paddingRight: "50px" }}
+              />
+              <span style={{ position: "absolute", right: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", fontWeight: 700, color: "var(--text-muted)" }}>
+                INR
+              </span>
+            </div>
+
+            {/* Quick selectors */}
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+              {["5000", "10000", "25000", "50000"].map((val) => (
+                <button
+                  type="button"
+                  key={val}
+                  className="btn btn-secondary"
+                  onClick={() => setDepositAmount(val)}
+                  style={{
+                    flex: 1,
+                    padding: "6px",
+                    fontSize: "11px",
+                    borderRadius: "8px"
+                  }}
+                >
+                  +₹{parseInt(val).toLocaleString()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            style={{ width: "100%", padding: "14px", fontWeight: 700 }} 
+            disabled={depositLoading || banks.length === 0}
+          >
+            {banks.length === 0
+              ? "Link Bank in Settings First"
+              : depositLoading
+              ? "Connecting Bank & Minting..."
+              : `Deposit ₹${depositAmount ? parseFloat(depositAmount).toLocaleString() : "0"} Instantly`}
+          </button>
+
+          {/* Messages */}
+          {depositMessage && (
+            <div style={{
+              background: depositMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
+              border: depositMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
+              color: depositMessage.error ? "var(--color-danger)" : "var(--color-info)",
+              padding: "16px",
+              borderRadius: "12px",
+              fontSize: "13px"
+            }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                {depositMessage.error ? <AlertCircle size={18} style={{ flexShrink: 0 }} /> : <CheckCircle2 size={18} style={{ flexShrink: 0 }} />}
+                <div>
+                  <div style={{ lineHeight: "1.4" }}>{depositMessage.text}</div>
+                  {depositMessage.txHash && (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${depositMessage.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mono-text"
+                      style={{
+                        color: "var(--color-accent)",
+                        textDecoration: "underline",
+                        display: "block",
+                        marginTop: "8px",
+                        fontSize: "11px",
+                        wordBreak: "break-all"
+                      }}
+                    >
+                      View on Etherscan: {depositMessage.txHash}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </form>
+      ) : activeMode === "send" ? (
         <form onSubmit={handleSend} className="fade-in">
           {/* Asset Selection */}
           <div className="form-group">

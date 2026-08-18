@@ -1,21 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useWallet } from "../context/WalletContext";
-import { Shield, Eye, EyeOff, KeyRound, AlertTriangle } from "lucide-react";
+import { Shield, Eye, EyeOff, KeyRound, AlertTriangle, Fingerprint } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 
 export const LockScreen: React.FC = () => {
-  const { unlockWallet, disconnectWallet } = useWallet();
+  const { unlockWallet, unlockWithBiometrics, disconnectWallet } = useWallet();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Auto-trigger biometrics on native platform when screen mounts
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      handleBiometricUnlock();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBiometricUnlock = async () => {
+    setBiometricLoading(true);
+    setError(null);
+    try {
+      const success = await unlockWithBiometrics();
+      if (!success) {
+        setError("Biometric authentication failed. Enter your password instead.");
+      }
+    } catch {
+      setError("Biometric authentication failed. Enter your password instead.");
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) return;
     setLoading(true);
     setError(null);
-
     try {
       const success = await unlockWallet(password);
       if (!success) {
@@ -79,8 +103,47 @@ export const LockScreen: React.FC = () => {
               Vault Locked
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "24px" }}>
-              Enter your session password to decrypt keys and access your portfolio.
+              Use biometrics or your password to decrypt and access your portfolio.
             </p>
+
+            {/* Biometric Button — primary unlock action */}
+            <button
+              type="button"
+              onClick={handleBiometricUnlock}
+              disabled={biometricLoading || loading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "16px",
+                marginBottom: "16px",
+                background: biometricLoading
+                  ? "rgba(99,102,241,0.1)"
+                  : "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18))",
+                border: "1px solid rgba(99,102,241,0.35)",
+                color: "var(--color-primary)",
+                fontSize: "15px",
+                fontWeight: 700,
+                cursor: biometricLoading ? "wait" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <Fingerprint
+                size={22}
+                style={{ animation: biometricLoading ? "spin 1.5s linear infinite" : "none" }}
+              />
+              {biometricLoading ? "Scanning…" : "Unlock with Fingerprint / Face ID"}
+            </button>
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ flex: 1, height: "1px", background: "var(--border-glass)" }} />
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>or use password</span>
+              <div style={{ flex: 1, height: "1px", background: "var(--border-glass)" }} />
+            </div>
 
             <div className="form-group" style={{ position: "relative", textAlign: "left" }}>
               <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -94,9 +157,8 @@ export const LockScreen: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{ paddingRight: "40px" }}
-                disabled={loading}
-                required
-                autoFocus
+                disabled={loading || biometricLoading}
+                autoFocus={!Capacitor.isNativePlatform()}
               />
               <button
                 type="button"
@@ -133,7 +195,7 @@ export const LockScreen: React.FC = () => {
               type="submit"
               className="btn btn-primary"
               style={{ width: "100%", padding: "12px", borderRadius: "12px", marginBottom: "16px" }}
-              disabled={loading || !password}
+              disabled={loading || biometricLoading || !password}
             >
               {loading ? "Unlocking..." : "Unlock Wallet"}
             </button>
@@ -160,13 +222,12 @@ export const LockScreen: React.FC = () => {
               width: "64px",
               height: "64px",
               borderRadius: "50%",
-              background: "rgba(161, 61, 52, 0.1)",
+              background: "rgba(161,61,52,0.1)",
               border: "1px solid var(--border-glass)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 20px auto",
-              boxShadow: "var(--shadow-neon)"
             }}>
               <AlertTriangle size={28} style={{ color: "var(--color-danger)" }} />
             </div>
@@ -175,7 +236,7 @@ export const LockScreen: React.FC = () => {
               Reset Local Wallet?
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "24px", lineHeight: "1.5" }}>
-              WARNING: This will permanently wipe your encrypted seed phrases from this device. 
+              WARNING: This will permanently wipe your encrypted seed phrases from this device.
               If you do not have your recovery phrase saved, you will lose access to this wallet forever.
             </p>
 

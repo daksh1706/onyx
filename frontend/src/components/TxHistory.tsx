@@ -1,6 +1,6 @@
 import React from "react";
 import { useWallet } from "../context/WalletContext";
-import { ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCcw, Gift, Cpu } from "lucide-react";
+import { ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCcw, Gift, Cpu, Landmark } from "lucide-react";
 
 export const TxHistory: React.FC = () => {
   const { transactions, loading, contractConfigured } = useWallet();
@@ -15,6 +15,8 @@ export const TxHistory: React.FC = () => {
         return <RefreshCcw size={16} style={{ color: "var(--color-accent)" }} />;
       case "Faucet":
         return <Gift size={16} style={{ color: "var(--color-warning)" }} />;
+      case "Deposit":
+        return <Landmark size={16} style={{ color: "var(--color-success)" }} />;
       default:
         return <ExternalLink size={16} />;
     }
@@ -24,7 +26,7 @@ export const TxHistory: React.FC = () => {
     <div className="glass-card fade-in">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <h3 style={{ fontSize: "20px" }}>Transaction History</h3>
-        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Last 5000 blocks</span>
+        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Last 100k blocks</span>
       </div>
 
       {!contractConfigured ? (

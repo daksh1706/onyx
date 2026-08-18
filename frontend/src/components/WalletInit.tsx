@@ -16,6 +16,7 @@ export const WalletInit: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<"login" | "create" | "import-seed" | "import-key" | "metamask">("login");
   const [usernameInput, setUsernameInput] = useState<string>("");
+  const [phoneInput, setPhoneInput] = useState<string>("");
   const [seedPhrase, setSeedPhrase] = useState<string>("");
   const [privKey, setPrivKey] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -89,10 +90,14 @@ export const WalletInit: React.FC = () => {
       setError("Username is required to save credentials.");
       return;
     }
+    if (!phoneInput.trim()) {
+      setError("Phone number is required.");
+      return;
+    }
     if (!validatePassword()) return;
     setSetupLoading(true);
     try {
-      await generateNewWallet(usernameInput, password);
+      await generateNewWallet(usernameInput, password, phoneInput);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to generate wallet.");
@@ -290,12 +295,27 @@ export const WalletInit: React.FC = () => {
                 Derive a brand new client-side wallet and save it to MongoDB.
               </p>
               {renderUsernameInput()}
+              <div className="form-group">
+                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px" }}>📱</span>
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="+91 98765 43210"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  disabled={setupLoading}
+                  required
+                />
+              </div>
               {renderPasswordInput()}
               <button
                 className="btn btn-primary"
                 onClick={handleGenerateWallet}
                 style={{ width: "100%", marginTop: "10px" }}
-                disabled={setupLoading || !usernameInput || !password}
+                disabled={setupLoading || !usernameInput || !phoneInput || !password}
               >
                 {setupLoading ? "Generating..." : "Generate New Wallet"}
               </button>

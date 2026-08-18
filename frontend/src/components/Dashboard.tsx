@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, Send, ArrowRightLeft, Download } from "lucide-react";
+import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, Send, ArrowRightLeft, RefreshCw, Landmark } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap" | "receive") => void;
@@ -21,6 +21,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     provider,
     reserves,
     onyxReserves,
+    loading,
   } = useWallet();
 
   const [faucetLoading, setFaucetLoading] = useState<boolean>(false);
@@ -28,6 +29,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const [cooldownLeft, setCooldownLeft] = useState<number>(0);
   const [timeFilter, setTimeFilter] = useState<string>("1M");
   const [mobileChartTab, setMobileChartTab] = useState<"performance" | "allocation">("performance");
+  const [mobileAssetTab, setMobileAssetTab] = useState<"crypto" | "etf" | "invest">("crypto");
+
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartRef.current = e.touches[0].pageY;
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing || window.scrollY > 0) return;
+    const currentY = e.touches[0].pageY;
+    const dist = currentY - touchStartRef.current;
+    if (dist > 0) {
+      const dynamicDist = Math.min(80, dist * 0.4);
+      setPullDistance(dynamicDist);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling || isRefreshing) return;
+    setIsPulling(false);
+    if (pullDistance > 45) {
+      setIsRefreshing(true);
+      setPullDistance(50);
+      try {
+        await refreshState();
+      } catch (err) {
+        console.error(err);
+      }
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }, 800);
+    } else {
+      setPullDistance(0);
+    }
+  };
 
   // Cooldown validation for faucet
   const checkFaucetCooldown = useCallback(async () => {
@@ -90,8 +134,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
   // Convert assets to INR valuation using real-time AMM spot rates (1 USD = 83 INR)
   const INR_MULTIPLIER = 83;
-  const rawMycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.50;
-  const rawOnyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 2.50;
+  const rawMycPrice = reserves ? parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA) : 0.001205; // 0.1 INR / MYC
+  const rawOnyxPrice = onyxReserves ? parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA) : 0.00241; // 0.2 INR / ONYX
 
   const mycPrice = rawMycPrice * INR_MULTIPLIER;
   const onyxPrice = rawOnyxPrice * INR_MULTIPLIER;
@@ -214,16 +258,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
             </div>
 
             <div style={{ position: "relative" }}>
-              {/* Total Balance Hero */}
-              <div className="portfolio-header">
-                <span className="portfolio-title">Net Portfolio Assets</span>
-                <div className="portfolio-amount">
-                  ₹{formatNumber(totalValInr)}
-                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-secondary)", display: "inline-flex", alignItems: "center", gap: "2px" }}>
-                    +{gainPercent.toFixed(1)}% (+₹{formatNumber(gainInr)})
-                  </span>
-                </div>
-              </div>
+             {/* Total Balance Hero */}
+             <div className="portfolio-header">
+               <span className="portfolio-title">Net Portfolio Assets</span>
+               {loading && totalValInr === 0 ? (
+                 <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "42px", marginTop: "8px" }}>
+                   <RefreshCw size={18} className="spin" style={{ color: "var(--color-primary)" }} />
+                   <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 600 }}>Syncing balance...</span>
+                 </div>
+               ) : (
+                 <div className="portfolio-amount">
+                   ₹{formatNumber(totalValInr)}
+                   <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-secondary)", display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                     +{gainPercent.toFixed(1)}% (+₹{formatNumber(gainInr)})
+                   </span>
+                 </div>
+               )}
+             </div>
 
               {isWalletEmpty ? (
                 <div style={{
@@ -536,16 +587,58 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
       {/* ========================================================
           MOBILE VIEW (Visible on mobile only, matches Stitch Design)
           ======================================================== */}
-      <div className="hide-on-desktop mobile-dashboard">
+      <div 
+        className="hide-on-desktop mobile-dashboard"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        
+        {/* Pull-to-refresh spinner visual indicator */}
+        <div style={{
+          height: `${pullDistance}px`,
+          opacity: pullDistance > 0 ? Math.min(1, pullDistance / 40) : 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          transition: isPulling ? "none" : "height 0.3s ease, opacity 0.3s ease",
+          width: "100%",
+          gap: "8px",
+          color: "var(--color-primary)",
+          zIndex: 50,
+          position: "relative"
+        }}>
+          <RefreshCw 
+            size={16} 
+            className={isRefreshing ? "spin" : ""} 
+            style={{ 
+              transform: isRefreshing ? undefined : `rotate(${pullDistance * 6}deg)`,
+              transition: isRefreshing ? "none" : "transform 0.1s linear" 
+            }} 
+          />
+          <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {isRefreshing ? "Syncing Wallet..." : "Pull to Refresh"}
+          </span>
+        </div>
         
         {/* Total Balance Hero Section */}
         <section className="mobile-balance-section">
           <p className="mobile-balance-label">Total Balance</p>
           <div className="mobile-balance-row">
-            <h1 className="mobile-balance-amount">₹{formatNumber(totalValInr)}</h1>
-            <span className="mobile-balance-badge">
-              +{gainPercent.toFixed(1)}%
-            </span>
+            {loading && totalValInr === 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "38px" }}>
+                <RefreshCw size={16} className="spin" style={{ color: "var(--color-primary)" }} />
+                <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: 600 }}>Syncing...</span>
+              </div>
+            ) : (
+              <>
+                <h1 className="mobile-balance-amount">₹{formatNumber(totalValInr)}</h1>
+                <span className="mobile-balance-badge">
+                  +{gainPercent.toFixed(1)}%
+                </span>
+              </>
+            )}
           </div>
         </section>
 
@@ -702,9 +795,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
           <button className="mobile-action-btn" onClick={() => setActiveTab && setActiveTab("receive")}>
             <div className="mobile-action-icon-wrapper">
-              <Download size={18} style={{ transform: "rotate(180deg)" }} />
+              <Landmark size={18} />
             </div>
-            <span>Receive</span>
+            <span>Deposit</span>
           </button>
         </section>
 
@@ -758,71 +851,188 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         {/* Asset List & Live Portfolios */}
         <section className="mobile-assets-section">
           <div className="mobile-assets-tabs">
-            <span className="active">Crypto</span>
-            <span>Invest</span>
-            <span>NFTs</span>
+            <span 
+              className={mobileAssetTab === "crypto" ? "active" : ""} 
+              onClick={() => setMobileAssetTab("crypto")}
+            >
+              Crypto
+            </span>
+            <span 
+              className={mobileAssetTab === "etf" ? "active" : ""} 
+              onClick={() => setMobileAssetTab("etf")}
+            >
+              ETF
+            </span>
+            <span 
+              className={mobileAssetTab === "invest" ? "active" : ""} 
+              onClick={() => setMobileAssetTab("invest")}
+            >
+              Invest
+            </span>
           </div>
 
           <div className="mobile-asset-list" style={{ padding: "0" }}>
-            {/* ETH Row */}
-            <div className="mobile-asset-row">
-              <div className="mobile-asset-left">
-                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
-                <div>
-                  <div className="mobile-asset-name">Ethereum</div>
-                  <div className="mobile-asset-symbol">ETH</div>
+            {mobileAssetTab === "crypto" && (
+              <>
+                {/* ETH Row */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Ethereum</div>
+                      <div className="mobile-asset-symbol">ETH</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹{formatNumber(ethVal)}</div>
+                    <div className="mobile-asset-balance">{formatNumber(parseFloat(ethBalance || "0"), 4)} ETH</div>
+                  </div>
                 </div>
-              </div>
-              <div className="mobile-asset-right">
-                <div className="mobile-asset-value">₹{formatNumber(ethVal)}</div>
-                <div className="mobile-asset-balance">{formatNumber(parseFloat(ethBalance || "0"), 4)} ETH</div>
-              </div>
-            </div>
 
-            {/* MYC Row */}
-            <div className="mobile-asset-row">
-              <div className="mobile-asset-left">
-                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
-                <div>
-                  <div className="mobile-asset-name">MyCoin</div>
-                  <div className="mobile-asset-symbol">MYC</div>
+                {/* MYC Row */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">MyCoin</div>
+                      <div className="mobile-asset-symbol">MYC</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹{formatNumber(mycVal)}</div>
+                    <div className="mobile-asset-balance">{formatNumber(parseFloat(mycBalance || "0"), 2)} MYC</div>
+                  </div>
                 </div>
-              </div>
-              <div className="mobile-asset-right">
-                <div className="mobile-asset-value">₹{formatNumber(mycVal)}</div>
-                <div className="mobile-asset-balance">{formatNumber(parseFloat(mycBalance || "0"), 2)} MYC</div>
-              </div>
-            </div>
 
-            {/* ONYX Row */}
-            <div className="mobile-asset-row">
-              <div className="mobile-asset-left">
-                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
-                <div>
-                  <div className="mobile-asset-name">Onyx Token</div>
-                  <div className="mobile-asset-symbol">ONYX</div>
+                {/* ONYX Row */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Onyx Token</div>
+                      <div className="mobile-asset-symbol">ONYX</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹{formatNumber(onyxVal)}</div>
+                    <div className="mobile-asset-balance">{formatNumber(parseFloat(onyxBalance || "0"), 2)} ONYX</div>
+                  </div>
                 </div>
-              </div>
-              <div className="mobile-asset-right">
-                <div className="mobile-asset-value">₹{formatNumber(onyxVal)}</div>
-                <div className="mobile-asset-balance">{formatNumber(parseFloat(onyxBalance || "0"), 2)} ONYX</div>
-              </div>
-            </div>
 
-            {/* INR Row */}
-            <div className="mobile-asset-row">
-              <div className="mobile-asset-left">
-                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
-                <div>
-                  <div className="mobile-asset-name">Indian Rupee</div>
-                  <div className="mobile-asset-symbol">INR</div>
+                {/* INR Row */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Indian Rupee</div>
+                      <div className="mobile-asset-symbol">INR</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹{formatNumber(inrVal)}</div>
+                    <div className="mobile-asset-balance">{formatNumber(parseFloat(inrBalance || "0"), 2)} INR</div>
+                  </div>
                 </div>
-              </div>
-              <div className="mobile-asset-right">
-                <div className="mobile-asset-value">₹{formatNumber(inrVal)}</div>
-                <div className="mobile-asset-balance">{formatNumber(parseFloat(inrBalance || "0"), 2)} INR</div>
-              </div>
-            </div>
+              </>
+            )}
+
+            {mobileAssetTab === "etf" && (
+              <>
+                {/* Onyx High-Growth Index */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Onyx High-Growth Index</div>
+                      <div className="mobile-asset-symbol">ONYX-HG</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹10,625.05</div>
+                    <div className="mobile-asset-balance">2.50 Shares</div>
+                  </div>
+                </div>
+
+                {/* Nifty 50 Crypto Index */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Nifty 50 Crypto Index</div>
+                      <div className="mobile-asset-symbol">NF50C</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹6,400.05</div>
+                    <div className="mobile-asset-balance">0.50 Shares</div>
+                  </div>
+                </div>
+
+                {/* Ethereum Yield ETF */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Ethereum Yield ETF</div>
+                      <div className="mobile-asset-symbol">ETH-YLD</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹10,750.00</div>
+                    <div className="mobile-asset-balance">5.00 Shares</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {mobileAssetTab === "invest" && (
+              <>
+                {/* Tata Digital Growth Fund */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Tata Digital Growth Fund</div>
+                      <div className="mobile-asset-symbol">TATA-DG</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹23,500.00</div>
+                    <div className="mobile-asset-balance">100.00 Units</div>
+                  </div>
+                </div>
+
+                {/* Reliance Industries Ltd */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">Reliance Industries Ltd</div>
+                      <div className="mobile-asset-symbol">RELIANCE</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹11,400.00</div>
+                    <div className="mobile-asset-balance">4.00 Shares</div>
+                  </div>
+                </div>
+
+                {/* HDFC Bank Gold Fund */}
+                <div className="mobile-asset-row">
+                  <div className="mobile-asset-left">
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                    <div>
+                      <div className="mobile-asset-name">HDFC Bank Gold Fund</div>
+                      <div className="mobile-asset-symbol">HDFC-GLD</div>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-right">
+                    <div className="mobile-asset-value">₹21,250.00</div>
+                    <div className="mobile-asset-balance">250.00 Units</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -850,21 +1060,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
           <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
           <span style={{ fontWeight: 600 }}>Ethereum Sepolia</span>
           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>12ms</span>
-        </div>
-        <div style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-glass)",
-          padding: "6px 12px",
-          borderRadius: "100px",
-          fontSize: "12px",
-          opacity: 0.6
-        }}>
-          <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
-          <span style={{ fontWeight: 600 }}>Polygon Amoy</span>
-          <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>24ms</span>
         </div>
       </footer>
 
