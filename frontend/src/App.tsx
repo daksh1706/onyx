@@ -12,6 +12,7 @@ import { Landmark, Send, ArrowRightLeft, Lock, LogOut, Bell, ChevronDown, PieCha
 function MainApp() {
   const { address, isLocked, hasSavedWallet, lockWallet, disconnectWallet } = useWallet();
   const [activeTab, setActiveTab] = useState<"portfolio" | "send" | "swap" | "markets" | "transactions">("portfolio");
+  const [sendReceiveMode, setSendReceiveMode] = useState<"send" | "receive">("send");
   const [copied, setCopied] = useState(false);
 
   const handleCopyAddress = () => {
@@ -64,7 +65,7 @@ function MainApp() {
           ======================================================== */}
       <aside className="sidebar-nav">
         <div className="sidebar-logo" style={{ color: "var(--color-primary)", fontSize: "22px", letterSpacing: "-0.03em" }}>
-          MyCoin <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Vault Wallet</span>
+          ONYX <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Vault Wallet</span>
         </div>
         <nav className="sidebar-menu">
           <button
@@ -187,24 +188,50 @@ function MainApp() {
           </div>
         </header>
 
-        {/* Mobile Header (Sticky at top when sidebar is hidden) */}
+        {/* Mobile Header (Fixed at top when sidebar is hidden) */}
         <header className="mobile-header">
-          <h2 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-accent)" }}>MyCoin</h2>
+          <button className="circle-btn" onClick={lockWallet} style={{ width: "32px", height: "32px", border: "none", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Lock size={15} style={{ color: "var(--color-primary)" }} />
+          </button>
+          
+          <div style={{
+            fontFamily: "var(--font-headline)",
+            fontSize: "24px",
+            fontWeight: 800,
+            letterSpacing: "-0.04em",
+            color: "var(--color-primary)",
+            textAlign: "center",
+            flex: 1
+          }}>
+            ONYX
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div className="dropdown-pill" onClick={handleCopyAddress} style={{ padding: "4px 10px", fontSize: "11px" }}>
+            <div className="dropdown-pill" onClick={handleCopyAddress} style={{ padding: "6px 10px", fontSize: "11px" }}>
               <span className="mono-text">{copied ? "Copied!" : truncatedAddress}</span>
             </div>
-            <button className="circle-btn" onClick={lockWallet} style={{ width: "32px", height: "32px" }}>
-              <Lock size={14} />
-            </button>
           </div>
         </header>
 
         {/* Dynamic Content Pane */}
         <div className="content-pane">
           <div className="fade-in" style={{ minHeight: "450px" }}>
-            {activeTab === "portfolio" && <Dashboard setActiveTab={setActiveTab} />}
-            {activeTab === "send" && <SendReceive />}
+            {activeTab === "portfolio" && (
+              <Dashboard
+                setActiveTab={(tab) => {
+                  if (tab === "send") {
+                    setSendReceiveMode("send");
+                    setActiveTab("send");
+                  } else if (tab === "receive") {
+                    setSendReceiveMode("receive");
+                    setActiveTab("send");
+                  } else {
+                    setActiveTab(tab as any);
+                  }
+                }}
+              />
+            )}
+            {activeTab === "send" && <SendReceive initialMode={sendReceiveMode} />}
             {activeTab === "swap" && <Swap />}
             {activeTab === "markets" && <Markets />}
             {activeTab === "transactions" && <TxHistory />}

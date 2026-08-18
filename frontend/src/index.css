@@ -590,15 +590,19 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: space-between;
     padding: max(47px, calc(12px + env(safe-area-inset-top))) 16px 12px 16px;
-    background: var(--bg-container);
+    background: rgba(18, 20, 20, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-glass);
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 50;
+    left: 0;
+    width: 100%;
+    z-index: 100;
   }
 
   .content-pane {
-    padding: 16px;
+    padding: max(110px, calc(75px + env(safe-area-inset-top))) 16px max(100px, calc(85px + env(safe-area-inset-bottom))) 16px;
   }
 
   .asset-scroll-container {
@@ -778,4 +782,167 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* Mobile Dashboard Layout */
+.mobile-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mobile-balance-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.mobile-balance-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.mobile-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.mobile-balance-amount {
+  font-family: var(--font-headline);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+}
+
+.mobile-balance-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-secondary); /* success mint */
+  background: rgba(78, 222, 163, 0.1);
+  padding: 4px 10px;
+  border-radius: 100px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mobile-chart-card {
+  border-radius: 24px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-chart-empty {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-glass);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.mobile-time-filters {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.mobile-time-filters span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.mobile-time-filters span.active {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  font-weight: 700;
+}
+
+.mobile-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.mobile-action-btn {
+  background: rgba(26, 28, 28, 0.6); /* surface-container-low glass */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  color: var(--text-main);
+}
+
+.mobile-action-btn:hover {
+  background: rgba(40, 42, 42, 0.8);
+  transform: translateY(-1px);
+}
+
+.mobile-action-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(190, 194, 255, 0.15); /* primary/10 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.mobile-assets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-assets-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.mobile-assets-tabs span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  padding-bottom: 8px;
+  border-bottom: 2px solid transparent;
+}
+
+.mobile-assets-tabs span.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }

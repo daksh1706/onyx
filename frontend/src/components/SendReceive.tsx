@@ -7,7 +7,11 @@ import { Send, Download, ArrowRightLeft, CheckCircle2, AlertCircle, HelpCircle, 
 import { BarcodeScanner, BarcodeFormat } from "@capacitor-mlkit/barcode-scanning";
 import { Capacitor } from "@capacitor/core";
 
-export const SendReceive: React.FC = () => {
+interface SendReceiveProps {
+  initialMode?: "send" | "receive";
+}
+
+export const SendReceive: React.FC<SendReceiveProps> = ({ initialMode = "send" }) => {
   const {
     address,
     ethBalance,
@@ -19,7 +23,11 @@ export const SendReceive: React.FC = () => {
     contractConfigured,
   } = useWallet();
 
-  const [activeMode, setActiveMode] = useState<"send" | "receive">("send");
+  const [activeMode, setActiveMode] = useState<"send" | "receive">(initialMode);
+
+  useEffect(() => {
+    setActiveMode(initialMode);
+  }, [initialMode]);
   
   // Send state
   const [recipient, setRecipient] = useState<string>("");

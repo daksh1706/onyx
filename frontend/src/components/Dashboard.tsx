@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon } from "lucide-react";
+import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, Send, ArrowRightLeft, Download } from "lucide-react";
 
 interface DashboardProps {
-  setActiveTab?: (tab: "portfolio" | "send" | "swap") => void;
+  setActiveTab?: (tab: "portfolio" | "send" | "swap" | "receive") => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = () => {
+export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const {
     address,
     ethBalance,
@@ -27,6 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   const [faucetMessage, setFaucetMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [cooldownLeft, setCooldownLeft] = useState<number>(0);
   const [timeFilter, setTimeFilter] = useState<string>("1M");
+  const [mobileChartTab, setMobileChartTab] = useState<"performance" | "allocation">("performance");
 
   // Cooldown validation for faucet
   const checkFaucetCooldown = useCallback(async () => {
@@ -135,182 +136,519 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   // Check if wallet is empty
   const isWalletEmpty = totalValInr <= 0;
 
+  const getChartPath = () => {
+    let relativePoints = [0.90, 0.93, 0.89, 0.96, 1.02, 1.0];
+    if (timeFilter === "1D") {
+      relativePoints = [0.98, 0.99, 0.96, 1.01, 1.03, 1.0];
+    } else if (timeFilter === "1W") {
+      relativePoints = [0.85, 0.90, 0.88, 0.95, 1.02, 1.0];
+    } else if (timeFilter === "1Y") {
+      relativePoints = [0.60, 0.72, 0.85, 0.80, 0.95, 1.0];
+    } else if (timeFilter === "ALL") {
+      relativePoints = [0.20, 0.45, 0.52, 0.75, 0.88, 1.0];
+    }
+
+    const width = 640;
+    const height = 200;
+    const points = relativePoints.map((p) => totalValInr * p);
+    const minVal = Math.min(...points) * 0.98;
+    const maxVal = Math.max(...points) * 1.02;
+    const range = maxVal - minVal || 1;
+
+    const pointsStr = points
+      .map((val, idx) => {
+        const x = (idx / (points.length - 1)) * width;
+        const y = height - ((val - minVal) / range) * height;
+        return `${x},${y}`;
+      })
+      .join(" ");
+
+    const firstY = height - ((points[0] - minVal) / range) * height;
+
+    return { pointsStr, width, height, firstY };
+  };
+
+  const chart = getChartPath();
+
   return (
     <div className="fade-in">
-      
 
-
-      {/* Bento Grid */}
-      <div className="dashboard-grid">
-        
-        {/* Main Chart Card (col-span-8) */}
-        <section className="glass-panel grid-col-8" style={{
-          borderRadius: "16px",
-          padding: "24px",
-          position: "relative",
-          minHeight: "400px"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-              <Activity size={18} style={{ color: "var(--color-primary)" }} />
-              Value Performance
-            </h3>
-            <div style={{ display: "flex", gap: "4px", background: "rgba(0,0,0,0.03)", padding: "4px", borderRadius: "8px" }}>
-              {["1D", "1W", "1M", "1Y", "ALL"].map((t) => (
-                <button
-                  key={t}
-                  className="btn"
-                  onClick={() => setTimeFilter(t)}
-                  style={{
-                    padding: "4px 10px",
-                    fontSize: "11px",
-                    borderRadius: "6px",
-                    background: t === timeFilter ? "var(--color-primary)" : "transparent",
-                    color: t === timeFilter ? "var(--color-on-primary)" : "var(--text-muted)",
-                    fontWeight: t === timeFilter ? 700 : 500,
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+      {/* ========================================================
+          DESKTOP VIEW (Visible on desktop/tablet only)
+          ======================================================== */}
+      <div className="hide-on-mobile">
+        {/* Bento Grid */}
+        <div className="dashboard-grid">
+          
+          {/* Main Chart Card (col-span-8) */}
+          <section className="glass-panel grid-col-8" style={{
+            borderRadius: "16px",
+            padding: "24px",
+            position: "relative",
+            minHeight: "400px"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                <Activity size={18} style={{ color: "var(--color-primary)" }} />
+                Value Performance
+              </h3>
+              <div style={{ display: "flex", gap: "4px", background: "rgba(0,0,0,0.03)", padding: "4px", borderRadius: "8px" }}>
+                {["1D", "1W", "1M", "1Y", "ALL"].map((t) => (
+                  <button
+                    key={t}
+                    className="btn"
+                    onClick={() => setTimeFilter(t)}
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      borderRadius: "6px",
+                      background: t === timeFilter ? "var(--color-primary)" : "transparent",
+                      color: t === timeFilter ? "var(--color-on-primary)" : "var(--text-muted)",
+                      fontWeight: t === timeFilter ? 700 : 500,
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {(() => {
-            const getChartPath = () => {
-              let relativePoints = [0.90, 0.93, 0.89, 0.96, 1.02, 1.0];
-              if (timeFilter === "1D") {
-                relativePoints = [0.98, 0.99, 0.96, 1.01, 1.03, 1.0];
-              } else if (timeFilter === "1W") {
-                relativePoints = [0.85, 0.90, 0.88, 0.95, 1.02, 1.0];
-              } else if (timeFilter === "1Y") {
-                relativePoints = [0.60, 0.72, 0.85, 0.80, 0.95, 1.0];
-              } else if (timeFilter === "ALL") {
-                relativePoints = [0.20, 0.45, 0.52, 0.75, 0.88, 1.0];
-              }
+            <div style={{ position: "relative" }}>
+              {/* Total Balance Hero */}
+              <div className="portfolio-header">
+                <span className="portfolio-title">Net Portfolio Assets</span>
+                <div className="portfolio-amount">
+                  ₹{formatNumber(totalValInr)}
+                  <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-secondary)", display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                    +{gainPercent.toFixed(1)}% (+₹{formatNumber(gainInr)})
+                  </span>
+                </div>
+              </div>
 
-              const width = 640;
-              const height = 200;
-              const points = relativePoints.map((p) => totalValInr * p);
-              const minVal = Math.min(...points) * 0.98;
-              const maxVal = Math.max(...points) * 1.02;
-              const range = maxVal - minVal || 1;
+              {isWalletEmpty ? (
+                <div style={{
+                  height: "200px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px dashed var(--border-glass)",
+                  borderRadius: "12px",
+                  color: "var(--text-muted)",
+                  fontSize: "13px"
+                }}>
+                  No assets in wallet. Use the Developer Faucet card below to claim test tokens.
+                </div>
+              ) : (
+                <div style={{ width: "100%", overflow: "hidden" }}>
+                  <svg viewBox={`0 0 ${chart.width} ${chart.height}`} style={{ width: "100%", overflow: "visible" }}>
+                    <defs>
+                      <linearGradient id="gradient-area" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-primary)" stopOpacity="0.2" />
+                        <stop offset="95%" stopColor="var(--color-primary)" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Area Under Curve */}
+                    <path
+                      d={`M 0,${chart.height} L 0,${chart.firstY} L ${chart.pointsStr.replace(/,/g, " ")} L ${chart.width},${chart.height} Z`}
+                      fill="url(#gradient-area)"
+                    />
 
-              const pointsStr = points
-                .map((val, idx) => {
-                  const x = (idx / (points.length - 1)) * width;
-                  const y = height - ((val - minVal) / range) * height;
-                  return `${x},${y}`;
-                })
-                .join(" ");
+                    {/* Stroke Line */}
+                    <polyline
+                      fill="none"
+                      stroke="var(--color-primary)"
+                      strokeWidth="3.5"
+                      points={chart.pointsStr}
+                      className="chart-glow"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </section>
 
-              return { pointsStr, width, height, firstY: height - ((points[0] - minVal) / range) * height };
-            };
+          {/* Allocation Sidebar Card (col-span-4) */}
+          <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Zap size={16} style={{ color: "var(--color-primary)" }} />
+              Asset Allocation
+            </h3>
 
-            const chart = getChartPath();
-
-            return (
-              <div style={{ position: "relative" }}>
-                {/* Total Balance Hero */}
-                <div className="portfolio-header">
-                  <span className="portfolio-title">Net Portfolio Assets</span>
-                  <div className="portfolio-amount">
-                    ₹{formatNumber(totalValInr)}
-                    <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-success)", display: "inline-flex", alignItems: "center", gap: "2px" }}>
-                      +{gainPercent}% (+₹{formatNumber(gainInr)})
-                    </span>
+            {isWalletEmpty ? (
+              <div style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px dashed var(--border-glass)",
+                borderRadius: "12px",
+                color: "var(--text-muted)",
+                fontSize: "13px",
+                minHeight: "200px"
+              }}>
+                Wipe clean.
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "20px" }}>
+                {/* SVG Donut Chart */}
+                <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+                  <svg width="140" height="140" viewBox="0 0 42 42" className="chart-glow" style={{ transform: "rotate(-90deg)" }}>
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="4.5" />
+                    {/* MYC Segment */}
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-primary)" strokeWidth="4.5"
+                      strokeDasharray={`${mycPercent} ${100 - mycPercent}`} strokeDashoffset={mycOffset} />
+                    {/* INR Segment */}
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-surface2)" strokeWidth="4.5"
+                      strokeDasharray={`${inrPercent} ${100 - inrPercent}`} strokeDashoffset={inrOffset} />
+                    {/* ONYX Segment */}
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-accent)" strokeWidth="4.5"
+                      strokeDasharray={`${onyxPercent} ${100 - onyxPercent}`} strokeDashoffset={onyxOffset} />
+                    {/* ETH Segment */}
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#8c8d9e" strokeWidth="4.5"
+                      strokeDasharray={`${ethPercent} ${100 - ethPercent}`} strokeDashoffset={ethOffset} />
+                  </svg>
+                  
+                  {/* Center Text overlay */}
+                  <div style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    textAlign: "center"
+                  }}>
+                    <span style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Assets</span>
+                    <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-main)" }}>4 Pairs</p>
                   </div>
                 </div>
 
-                {isWalletEmpty ? (
+                {/* Legends list */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
+                    <span>ETH ({ethPercent.toFixed(0)}%)</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                    <span>MYC ({mycPercent.toFixed(0)}%)</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
+                    <span>INR ({inrPercent.toFixed(0)}%)</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                    <span>ONYX ({onyxPercent.toFixed(0)}%)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Grid: Developer Faucet & Asset Table */}
+        <div className="dashboard-grid" style={{ marginTop: "32px" }}>
+          
+          {/* Developer Sandbox Faucet (col-span-4) */}
+          <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Clock size={16} style={{ color: "var(--color-primary)" }} />
+              Developer Sandbox Faucet
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.5", marginBottom: "20px" }}>
+              Claim 100 test MYC, 100 test INR, and 100 test ONYX tokens once every 24 hours to test send and swap features.
+            </p>
+
+            {!contractConfigured ? (
+              <div style={{ color: "var(--color-danger)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <AlertTriangle size={14} />
+                Faucet contracts not configured. Check environment variables.
+              </div>
+            ) : (
+              <div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleClaimFaucet}
+                  disabled={faucetLoading || cooldownLeft > 0}
+                  style={{ width: "100%", padding: "14px", fontWeight: 700 }}
+                >
+                  {faucetLoading ? "Requesting Tokens..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
+                </button>
+
+                {faucetMessage && (
                   <div style={{
-                    height: "200px",
+                    marginTop: "16px",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    background: faucetMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
+                    border: faucetMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
+                    color: faucetMessage.error ? "var(--color-danger)" : "var(--color-info)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    border: "1px dashed var(--border-glass)",
-                    borderRadius: "12px",
-                    color: "var(--text-muted)",
-                    fontSize: "13px"
+                    gap: "6px"
                   }}>
-                    No assets in wallet. Use the Developer Faucet card below to mint test tokens.
-                  </div>
-                ) : (
-                  <div style={{ width: "100%", overflow: "hidden" }}>
-                    <svg viewBox={`0 0 ${chart.width} ${chart.height}`} style={{ width: "100%", overflow: "visible" }}>
-                      <defs>
-                        <linearGradient id="gradient-area" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--color-accent)" stopOpacity="0.2" />
-                          <stop offset="95%" stopColor="var(--color-accent)" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      
-                      {/* Area Under Curve */}
-                      <path
-                        d={`M 0,${chart.height} L 0,${chart.firstY} L ${chart.pointsStr.replace(/,/g, " ")} L ${chart.width},${chart.height} Z`}
-                        fill="url(#gradient-area)"
-                      />
-
-                      {/* Stroke Line */}
-                      <polyline
-                        fill="none"
-                        stroke="var(--color-accent)"
-                        strokeWidth="3.5"
-                        points={chart.pointsStr}
-                        className="chart-glow"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                    <span>{faucetMessage.text}</span>
                   </div>
                 )}
               </div>
-            );
-          })()}
+            )}
+          </section>
+
+          {/* Asset Table List (col-span-8) */}
+          <section className="glass-panel grid-col-8" style={{ borderRadius: "16px", padding: "0", overflow: "hidden" }}>
+            <div style={{
+              padding: "16px 24px",
+              borderBottom: "1px solid var(--border-glass)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                <ShieldCheckIcon size={16} style={{ color: "var(--color-primary)" }} />
+                Asset Portfolios & Live Market Feed
+              </h3>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
+                Synced from Pool Reserves
+              </span>
+            </div>
+
+            <div className="hide-on-mobile" style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                <thead>
+                  <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cryptocurrency</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (INR)</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>24h Change</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Tokens)</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (INR)</th>
+                    <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Ethereum Row */}
+                  <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
+                    <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
+                        Ethereum (ETH)
+                      </div>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethPrice)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <span style={{ background: "rgba(47, 138, 91, 0.1)", color: "var(--color-success)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(ethBalance || "0"), 4)}</td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethVal)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <svg width="64" height="16" stroke="var(--color-success)" fill="none" strokeWidth="2">
+                        <path d="M 0 12 L 15 10 L 30 14 L 45 4 L 64 2" />
+                      </svg>
+                    </td>
+                  </tr>
+                  {/* MyCoin Row */}
+                  <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
+                    <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                        MyCoin (MYC)
+                      </div>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycPrice, 2)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <span style={{ 
+                        background: mycPrice >= (0.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
+                        color: mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
+                        padding: "2px 6px", 
+                        borderRadius: "4px", 
+                        fontSize: "11px" 
+                      }}>
+                        {mycPrice >= (0.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawMycPrice - 0.50) / 0.50) * 100).toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(mycBalance || "0"), 2)}</td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycVal)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <svg width="64" height="16" stroke={mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
+                        <path d={mycPrice >= (0.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
+                      </svg>
+                    </td>
+                  </tr>
+                  {/* Onyx Row */}
+                  <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
+                    <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                        Onyx Token (ONYX)
+                      </div>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxPrice, 2)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <span style={{ 
+                        background: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
+                        color: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
+                        padding: "2px 6px", 
+                        borderRadius: "4px", 
+                        fontSize: "11px" 
+                      }}>
+                        {onyxPrice >= (2.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawOnyxPrice - 2.50) / 2.50) * 100).toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(onyxBalance || "0"), 2)}</td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxVal)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <svg width="64" height="16" stroke={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
+                        <path d={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
+                      </svg>
+                    </td>
+                  </tr>
+                  {/* INR Row */}
+                  <tr>
+                    <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
+                        Indian Rupee (INR)
+                      </div>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrPrice, 2)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <span style={{ background: "rgba(0,0,0,0.03)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
+                    </td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(inrBalance || "0"), 2)}</td>
+                    <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrVal)}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <svg width="64" height="16" stroke="var(--text-muted)" fill="none" strokeWidth="2">
+                        <path d="M 0 8 L 20 8 L 40 8 L 64 8" />
+                      </svg>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* ========================================================
+          MOBILE VIEW (Visible on mobile only, matches Stitch Design)
+          ======================================================== */}
+      <div className="hide-on-desktop mobile-dashboard">
+        
+        {/* Total Balance Hero Section */}
+        <section className="mobile-balance-section">
+          <p className="mobile-balance-label">Total Balance</p>
+          <div className="mobile-balance-row">
+            <h1 className="mobile-balance-amount">₹{formatNumber(totalValInr)}</h1>
+            <span className="mobile-balance-badge">
+              +{gainPercent.toFixed(1)}%
+            </span>
+          </div>
         </section>
 
-        {/* Allocation Sidebar Card (col-span-4) */}
-        <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Zap size={16} style={{ color: "var(--color-primary)" }} />
-            Asset Allocation
-          </h3>
+        {/* Dynamic Chart (Glass Panel Card) with Performance / Breakdown toggle */}
+        <section className="glass-panel mobile-chart-card">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent rounded-3xl pointer-events-none"></div>
+          
+          {/* Header toggle tab */}
+          <div style={{ display: "flex", gap: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "10px", zIndex: 20, position: "relative" }}>
+            <span 
+              style={{ 
+                fontSize: "12px", 
+                fontWeight: 700, 
+                cursor: "pointer", 
+                color: mobileChartTab === "performance" ? "var(--color-primary)" : "var(--text-muted)",
+                transition: "var(--transition-smooth)",
+                borderBottom: mobileChartTab === "performance" ? "2px solid var(--color-primary)" : "2px solid transparent",
+                paddingBottom: "8px"
+              }}
+              onClick={() => setMobileChartTab("performance")}
+            >
+              Performance
+            </span>
+            <span 
+              style={{ 
+                fontSize: "12px", 
+                fontWeight: 700, 
+                cursor: "pointer", 
+                color: mobileChartTab === "allocation" ? "var(--color-primary)" : "var(--text-muted)",
+                transition: "var(--transition-smooth)",
+                borderBottom: mobileChartTab === "allocation" ? "2px solid var(--color-primary)" : "2px solid transparent",
+                paddingBottom: "8px"
+              }}
+              onClick={() => setMobileChartTab("allocation")}
+            >
+              Allocation Breakdown
+            </span>
+          </div>
 
           {isWalletEmpty ? (
-            <div style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px dashed var(--border-glass)",
-              borderRadius: "12px",
-              color: "var(--text-muted)",
-              fontSize: "13px",
-              padding: "24px"
-            }}>
-              No allocation data available.
+            <div className="mobile-chart-empty" style={{ zIndex: 10 }}>
+              No assets in wallet. Use the Developer Faucet action below to claim test tokens.
             </div>
+          ) : mobileChartTab === "performance" ? (
+            <>
+              {/* Dynamic Line Chart */}
+              <div style={{ width: "100%", height: "120px", position: "relative", zIndex: 10 }}>
+                <svg viewBox={`0 0 ${chart.width} ${chart.height}`} style={{ width: "100%", height: "100%", overflow: "visible" }}>
+                  <defs>
+                    <linearGradient id="mobileGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.2" />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Area */}
+                  <path
+                    d={`M 0,${chart.height} L 0,${chart.firstY} L ${chart.pointsStr.replace(/,/g, " ")} L ${chart.width},${chart.height} Z`}
+                    fill="url(#mobileGrad)"
+                    opacity="0.4"
+                  />
+                  
+                  {/* Line */}
+                  <polyline
+                    fill="none"
+                    stroke="var(--color-primary)"
+                    strokeWidth="3.5"
+                    points={chart.pointsStr}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ filter: "drop-shadow(0px 4px 8px var(--color-primary-glow))" }}
+                  />
+                </svg>
+              </div>
+
+              {/* Time Timeframe Filters */}
+              <div className="mobile-time-filters" style={{ zIndex: 10 }}>
+                {["1D", "1W", "1M", "1Y", "ALL"].map((t) => (
+                  <span
+                    key={t}
+                    className={t === timeFilter ? "active" : ""}
+                    onClick={() => setTimeFilter(t)}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px", flex: 1, justifyContent: "center" }}>
-              
-              {/* Donut Chart SVG */}
+            /* Allocation breakdown donut chart matching Portfolio Breakdown screen */
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "10px 0", zIndex: 10, position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
-                <svg width="140" height="140" viewBox="0 0 42 42" style={{ transform: "rotate(-90deg)" }}>
-                  {/* Segment: MYC */}
+                <svg width="120" height="120" viewBox="0 0 42 42" className="chart-glow" style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="4.5" />
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-primary)" strokeWidth="4.5"
                     strokeDasharray={`${mycPercent} ${100 - mycPercent}`} strokeDashoffset={mycOffset} />
-                  {/* Segment: INR */}
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-surface2)" strokeWidth="4.5"
                     strokeDasharray={`${inrPercent} ${100 - inrPercent}`} strokeDashoffset={inrOffset} />
-                  {/* Segment: ONYX */}
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--color-accent)" strokeWidth="4.5"
                     strokeDasharray={`${onyxPercent} ${100 - onyxPercent}`} strokeDashoffset={onyxOffset} />
-                  {/* Segment: ETH */}
                   <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#8c8d9e" strokeWidth="4.5"
                     strokeDasharray={`${ethPercent} ${100 - ethPercent}`} strokeDashoffset={ethOffset} />
                 </svg>
-                
-                {/* Center Badge */}
                 <div style={{
                   position: "absolute",
                   top: "50%",
@@ -318,52 +656,72 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                   transform: "translate(-50%, -50%)",
                   textAlign: "center"
                 }}>
-                  <span style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Assets</span>
-                  <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-main)" }}>4 Pairs</p>
+                  <span style={{ fontSize: "9px", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 700 }}>Pairs</span>
+                  <p style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>4 Coins</p>
                 </div>
               </div>
 
-              {/* Legends list */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
+              {/* mini legends grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: "11px", width: "100%", maxWidth: "240px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
-                  <span>ETH ({ethPercent.toFixed(0)}%)</span>
+                  <svg width="6" height="6"><circle cx="3" cy="3" r="3" fill="#8c8d9e" /></svg>
+                  <span style={{ color: "var(--text-muted)" }}>ETH ({ethPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
-                  <span>MYC ({mycPercent.toFixed(0)}%)</span>
+                  <svg width="6" height="6"><circle cx="3" cy="3" r="3" fill="var(--color-primary)" /></svg>
+                  <span style={{ color: "var(--text-muted)" }}>MYC ({mycPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
-                  <span>INR ({inrPercent.toFixed(0)}%)</span>
+                  <svg width="6" height="6"><circle cx="3" cy="3" r="3" fill="var(--color-surface2)" /></svg>
+                  <span style={{ color: "var(--text-muted)" }}>INR ({inrPercent.toFixed(0)}%)</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
-                  <span>ONYX ({onyxPercent.toFixed(0)}%)</span>
+                  <svg width="6" height="6"><circle cx="3" cy="3" r="3" fill="var(--color-accent)" /></svg>
+                  <span style={{ color: "var(--text-muted)" }}>ONYX ({onyxPercent.toFixed(0)}%)</span>
                 </div>
               </div>
             </div>
           )}
         </section>
-      </div>
 
-      {/* Grid: Developer Faucet & Asset Table */}
-      <div className="dashboard-grid" style={{ marginTop: "32px" }}>
-        
-        {/* Developer Sandbox Faucet (col-span-4) */}
-        <section className="glass-panel grid-col-4" style={{ borderRadius: "16px", padding: "24px" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Quick Action Navigation Grid */}
+        <section className="mobile-actions-grid">
+          <button className="mobile-action-btn" onClick={() => setActiveTab && setActiveTab("send")}>
+            <div className="mobile-action-icon-wrapper">
+              <Send size={18} />
+            </div>
+            <span>Send</span>
+          </button>
+          
+          <button className="mobile-action-btn" onClick={() => setActiveTab && setActiveTab("swap")}>
+            <div className="mobile-action-icon-wrapper">
+              <ArrowRightLeft size={18} />
+            </div>
+            <span>Swap</span>
+          </button>
+
+          <button className="mobile-action-btn" onClick={() => setActiveTab && setActiveTab("receive")}>
+            <div className="mobile-action-icon-wrapper">
+              <Download size={18} style={{ transform: "rotate(180deg)" }} />
+            </div>
+            <span>Receive</span>
+          </button>
+        </section>
+
+        {/* Dedicated Mobile Developer Sandbox Faucet Card */}
+        <section className="glass-panel" style={{ borderRadius: "20px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Clock size={16} style={{ color: "var(--color-primary)" }} />
-            Developer Sandbox Faucet
-          </h3>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.5", marginBottom: "20px" }}>
-            Claim 100 test MYC, 100 test INR, and 100 test ONYX tokens once every 24 hours to test send and swap features.
+            <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>Sandbox Token Faucet</h4>
+          </div>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
+            Claim 100 free test tokens once every 24 hours.
           </p>
 
           {!contractConfigured ? (
-            <div style={{ color: "var(--color-danger)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-              <AlertTriangle size={14} />
-              Faucet contracts not configured. Check environment variables.
+            <div style={{ color: "var(--color-danger)", fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <AlertTriangle size={12} />
+              Contracts not configured.
             </div>
           ) : (
             <div>
@@ -371,25 +729,25 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 className="btn btn-primary"
                 onClick={handleClaimFaucet}
                 disabled={faucetLoading || cooldownLeft > 0}
-                style={{ width: "100%", padding: "14px", fontWeight: 700 }}
+                style={{ width: "100%", padding: "10px", fontSize: "12px", fontWeight: 700 }}
               >
-                {faucetLoading ? "Requesting Tokens..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
+                {faucetLoading ? "Requesting..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
               </button>
 
               {faucetMessage && (
                 <div style={{
-                  marginTop: "16px",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
+                  marginTop: "8px",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  fontSize: "11px",
                   background: faucetMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
                   border: faucetMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
                   color: faucetMessage.error ? "var(--color-danger)" : "var(--color-info)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "6px"
+                  gap: "4px"
                 }}>
-                  <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                  <AlertTriangle size={12} style={{ flexShrink: 0 }} />
                   <span>{faucetMessage.text}</span>
                 </div>
               )}
@@ -397,140 +755,15 @@ export const Dashboard: React.FC<DashboardProps> = () => {
           )}
         </section>
 
-        {/* Asset Table List (col-span-8) */}
-        <section className="glass-panel grid-col-8" style={{ borderRadius: "16px", padding: "0", overflow: "hidden" }}>
-          <div style={{
-            padding: "16px 24px",
-            borderBottom: "1px solid var(--border-glass)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}>
-            <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-              <ShieldCheckIcon size={16} style={{ color: "var(--color-primary)" }} />
-              Asset Portfolios & Live Market Feed
-            </h3>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
-              <svg width="6" height="6" style={{ flexShrink: 0 }}><circle cx="3" cy="3" r="3" fill="var(--color-success)" /></svg>
-              Synced from Pool Reserves
-            </span>
+        {/* Asset List & Live Portfolios */}
+        <section className="mobile-assets-section">
+          <div className="mobile-assets-tabs">
+            <span className="active">Crypto</span>
+            <span>Invest</span>
+            <span>NFTs</span>
           </div>
 
-          <div className="hide-on-mobile" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-              <thead>
-                <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Cryptocurrency</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Price (INR)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>24h Change</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Balance (Tokens)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Value (INR)</th>
-                  <th style={{ padding: "12px 18px", fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)" }}>Trend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Ethereum Row */}
-                <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
-                      Ethereum (ETH)
-                    </div>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethPrice)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(47, 138, 91, 0.1)", color: "var(--color-success)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>+1.45%</span>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(ethBalance || "0"), 4)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(ethVal)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke="var(--color-success)" fill="none" strokeWidth="2">
-                      <path d="M 0 12 L 15 10 L 30 14 L 45 4 L 64 2" />
-                    </svg>
-                  </td>
-                </tr>
-                {/* MyCoin Row */}
-                <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
-                      MyCoin (MYC)
-                    </div>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycPrice, 2)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ 
-                      background: mycPrice >= (0.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
-                      color: mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
-                      padding: "2px 6px", 
-                      borderRadius: "4px", 
-                      fontSize: "11px" 
-                    }}>
-                      {mycPrice >= (0.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawMycPrice - 0.50) / 0.50) * 100).toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(mycBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(mycVal)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={mycPrice >= (0.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
-                      <path d={mycPrice >= (0.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
-                    </svg>
-                  </td>
-                </tr>
-                {/* Onyx Row */}
-                <tr style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
-                      Onyx Token (ONYX)
-                    </div>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxPrice, 2)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ 
-                      background: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "rgba(47, 138, 91, 0.1)" : "rgba(161, 61, 52, 0.1)", 
-                      color: onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)", 
-                      padding: "2px 6px", 
-                      borderRadius: "4px", 
-                      fontSize: "11px" 
-                    }}>
-                      {onyxPrice >= (2.50 * INR_MULTIPLIER) ? "+" : ""}{(((rawOnyxPrice - 2.50) / 2.50) * 100).toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(onyxBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(onyxVal)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "var(--color-success)" : "var(--color-danger)"} fill="none" strokeWidth="2">
-                      <path d={onyxPrice >= (2.50 * INR_MULTIPLIER) ? "M 0 14 L 20 12 L 40 8 L 64 2" : "M 0 2 L 20 8 L 40 6 L 64 14"} />
-                    </svg>
-                  </td>
-                </tr>
-                {/* INR Row */}
-                <tr>
-                  <td style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 600 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
-                      Indian Rupee (INR)
-                    </div>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrPrice, 2)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{ background: "rgba(0,0,0,0.03)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>0.00%</span>
-                  </td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px" }}>{formatNumber(parseFloat(inrBalance || "0"), 2)}</td>
-                  <td className="mono-text" style={{ padding: "14px 18px", fontSize: "13px", fontWeight: 700 }}>₹{formatNumber(inrVal)}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <svg width="64" height="16" stroke="var(--text-muted)" fill="none" strokeWidth="2">
-                      <path d="M 0 8 L 20 8 L 40 8 L 64 8" />
-                    </svg>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Asset List (Visible on mobile only) */}
-          <div className="hide-on-desktop mobile-asset-list">
+          <div className="mobile-asset-list" style={{ padding: "0" }}>
             {/* ETH Row */}
             <div className="mobile-asset-row">
               <div className="mobile-asset-left">
@@ -592,6 +825,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </div>
           </div>
         </section>
+
       </div>
 
       {/* Network Latency Status Footer */}
