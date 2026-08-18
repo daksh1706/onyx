@@ -5,26 +5,29 @@
   --font-headline: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Onyx Stitch Premium Matte-Dark Theme */
+  /* Onyx Institutional Design System Tokens */
   --bg-dark: #121414; /* Void background */
-  --bg-card: rgba(30, 32, 32, 0.75); /* Surface-container level 1 */
-  --bg-card-hover: rgba(40, 42, 43, 0.8);
+  --bg-card: rgba(26, 28, 28, 0.60); /* L1 Container: 60% opacity of #1a1c1c with 20px blur */
+  --bg-card-hover: rgba(40, 42, 42, 0.8);
   --bg-container: #1a1c1c; /* Surface-container low */
   
-  --color-primary: #bec2ff; /* Lavender Blue Accent */
-  --color-primary-glow: rgba(190, 194, 255, 0.15);
+  --color-primary: #bec2ff; /* Lavender Accent */
+  --color-on-primary: #272b5e; /* High contrast dark blue text */
+  --color-primary-glow: rgba(190, 194, 255, 0.3);
   
-  --color-secondary: #c8c6c5; /* Matte Gray */
-  --color-secondary-glow: rgba(200, 198, 197, 0.12);
+  --color-secondary: #4edea3; /* Mint Accent */
+  --color-on-secondary: #003824; /* High contrast dark green text */
+  --color-secondary-glow: rgba(78, 222, 163, 0.15);
   
-  --color-accent: #ffb4a9; /* Soft Peach Coral */
-  --color-accent-glow: rgba(255, 180, 169, 0.2);
+  --color-accent: #ffb4a9; /* Coral Accent */
+  --color-on-accent: #51221c; /* High contrast dark peach-red text */
+  --color-accent-glow: rgba(255, 180, 169, 0.3);
   
   --text-main: #e2e2e2; /* On-surface main text */
-  --text-muted: #c5c4db; /* On-surface-variant muted text */
+  --text-muted: #c7c5d0; /* On-surface-variant muted text */
   
-  --border-glass: rgba(143, 143, 164, 0.15); /* Outline transparent border */
-  --border-glass-hover: rgba(143, 143, 164, 0.3);
+  --border-glass: rgba(255, 255, 255, 0.12); /* glass-stroke */
+  --border-glass-hover: rgba(255, 255, 255, 0.25);
 
   /* Elevation Shadows & Inner Glows */
   --shadow-neon: 0 12px 36px rgba(0, 0, 0, 0.4);
@@ -47,26 +50,26 @@
   --color-fg-5: var(--text-main);
   --color-fg-6: var(--border-glass);
   --color-fg-7: #2eccff;
-  --color-on-primary: #0b1326;
-  --color-on-accent: #0b1326;
+  --color-on-primary: #272b5e;
+  --color-on-accent: #51221c;
   --color-primary-hover: var(--bg-card-hover);
   --color-primary-active: var(--bg-container);
-  --color-info: #00dbe9;
-  --color-on-info: #0b1326;
+  --color-info: #bec2ff;
+  --color-on-info: #272b5e;
   --color-success: #4edea3;
-  --color-on-success: #0b1326;
-  --color-warning: #ffe083;
-  --color-on-warning: #0b1326;
-  --color-danger: rgba(255, 0, 85, 0.85);
-  --color-on-danger: #ffffff;
+  --color-on-success: #003824;
+  --color-warning: #ffb4a9;
+  --color-on-warning: #51221c;
+  --color-danger: #ffb4ab;
+  --color-on-danger: #690005;
   --color-focus-ring: var(--color-primary);
 }
 
 .glass-panel {
-  background: rgba(23, 31, 51, 0.7);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(132, 148, 149, 0.15);
+  border: 1px solid var(--border-glass);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
@@ -198,12 +201,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-accent {
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
   box-shadow: 0 4px 14px var(--color-accent-glow);
 }
 
 .btn-accent:hover {
-  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 180, 169, 0.25);
+  filter: brightness(1.05);
 }
 
 .btn:disabled, .btn-primary:disabled, .btn-secondary:disabled {
