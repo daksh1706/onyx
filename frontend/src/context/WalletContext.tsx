@@ -1240,9 +1240,40 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const claimFaucet = async () => {
-    const verified = await verifyBiometrics("Confirm claiming tokens from Faucet");
+    const verified = await verifyBiometrics("Confirm claiming free test crypto from Faucet");
     if (!verified) throw new Error("Biometric authorization required");
 
+    if (!address) throw new Error("Wallet not connected");
+
+    try {
+      // 1. Try backend automated relayer (funds gas + mints test crypto instantly)
+      const res = await fetch(`${API_URL}/api/faucet/claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ address })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        await cacheTransaction({
+          hash: data.txHash,
+          type: "Faucet",
+          token: "MYC+INR+ONYX",
+          amount: "100+100+100",
+          blockNumber: data.blockNumber || 0,
+          timestamp: Date.now()
+        });
+        await refreshState();
+        return { hash: data.txHash } as any;
+      }
+    } catch (backendErr) {
+      console.warn("Backend faucet relayer error, attempting direct contract call:", backendErr);
+    }
+
+    // 2. Fallback to direct smart contract call if relayer is unavailable
     if (!signer) throw new Error("Wallet not connected");
     const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, signer);
     const tx = await faucetContract.requestTokens();

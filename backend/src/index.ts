@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import txRoutes from "./routes/transactions";
 import bankRoutes from "./routes/banks";
+import faucetRoutes from "./routes/faucet";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/transactions", txRoutes);
 app.use("/api/banks", bankRoutes);
+app.use("/api/faucet", faucetRoutes);
 
 // Health Check
 app.get("/health", (req, res) => {
