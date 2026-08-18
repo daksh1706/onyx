@@ -416,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
             </span>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div className="hide-on-mobile" style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
                 <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid var(--border-glass)" }}>
@@ -527,6 +527,69 @@ export const Dashboard: React.FC<DashboardProps> = () => {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Asset List (Visible on mobile only) */}
+          <div className="hide-on-desktop mobile-asset-list">
+            {/* ETH Row */}
+            <div className="mobile-asset-row">
+              <div className="mobile-asset-left">
+                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="#8c8d9e" /></svg>
+                <div>
+                  <div className="mobile-asset-name">Ethereum</div>
+                  <div className="mobile-asset-symbol">ETH</div>
+                </div>
+              </div>
+              <div className="mobile-asset-right">
+                <div className="mobile-asset-value">₹{formatNumber(ethVal)}</div>
+                <div className="mobile-asset-balance">{formatNumber(parseFloat(ethBalance || "0"), 4)} ETH</div>
+              </div>
+            </div>
+
+            {/* MYC Row */}
+            <div className="mobile-asset-row">
+              <div className="mobile-asset-left">
+                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-primary)" /></svg>
+                <div>
+                  <div className="mobile-asset-name">MyCoin</div>
+                  <div className="mobile-asset-symbol">MYC</div>
+                </div>
+              </div>
+              <div className="mobile-asset-right">
+                <div className="mobile-asset-value">₹{formatNumber(mycVal)}</div>
+                <div className="mobile-asset-balance">{formatNumber(parseFloat(mycBalance || "0"), 2)} MYC</div>
+              </div>
+            </div>
+
+            {/* ONYX Row */}
+            <div className="mobile-asset-row">
+              <div className="mobile-asset-left">
+                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-accent)" /></svg>
+                <div>
+                  <div className="mobile-asset-name">Onyx Token</div>
+                  <div className="mobile-asset-symbol">ONYX</div>
+                </div>
+              </div>
+              <div className="mobile-asset-right">
+                <div className="mobile-asset-value">₹{formatNumber(onyxVal)}</div>
+                <div className="mobile-asset-balance">{formatNumber(parseFloat(onyxBalance || "0"), 2)} ONYX</div>
+              </div>
+            </div>
+
+            {/* INR Row */}
+            <div className="mobile-asset-row">
+              <div className="mobile-asset-left">
+                <svg width="8" height="8" style={{ flexShrink: 0 }}><circle cx="4" cy="4" r="4" fill="var(--color-surface2)" /></svg>
+                <div>
+                  <div className="mobile-asset-name">Indian Rupee</div>
+                  <div className="mobile-asset-symbol">INR</div>
+                </div>
+              </div>
+              <div className="mobile-asset-right">
+                <div className="mobile-asset-value">₹{formatNumber(inrVal)}</div>
+                <div className="mobile-asset-balance">{formatNumber(parseFloat(inrBalance || "0"), 2)} INR</div>
+              </div>
+            </div>
           </div>
         </section>
       </div>

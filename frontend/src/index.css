@@ -713,8 +713,69 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-@media (max-width: 600px) {
+/* Responsive visibility utilities */
+.hide-on-desktop {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .hide-on-desktop {
+    display: block !important;
+  }
   .hide-on-mobile {
     display: none !important;
   }
+}
+
+/* Mobile Asset list layout */
+.mobile-asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.mobile-asset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+}
+
+.mobile-asset-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-asset-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.mobile-asset-symbol {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.mobile-asset-right {
+  text-align: right;
+}
+
+.mobile-asset-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.mobile-asset-balance {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
