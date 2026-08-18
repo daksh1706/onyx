@@ -113,8 +113,6 @@ function MainApp() {
               borderRadius: "10px",
               fontWeight: 700,
               fontSize: "13px",
-              background: "var(--color-primary)",
-              color: "var(--color-on-primary)",
               textTransform: "uppercase",
               letterSpacing: "0.05em"
             }}

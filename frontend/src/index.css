@@ -77,6 +77,11 @@
   filter: drop-shadow(0 0 8px rgba(0, 219, 233, 0.3));
 }
 
+html {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -173,9 +178,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary {
   background: var(--color-primary);
-  color: #002e6a; /* High contrast dark text on light blue button */
+  color: var(--color-on-primary); /* High contrast dark text */
   font-weight: 700;
   box-shadow: 0 4px 14px var(--color-primary-glow);
+}
+
+.btn-primary * {
+  color: inherit !important;
 }
 
 .btn-primary:hover {
@@ -203,6 +212,10 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--color-accent);
   color: var(--color-on-accent);
   box-shadow: 0 4px 14px var(--color-accent-glow);
+}
+
+.btn-accent * {
+  color: inherit !important;
 }
 
 .btn-accent:hover {

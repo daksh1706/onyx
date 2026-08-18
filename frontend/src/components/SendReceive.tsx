@@ -187,7 +187,7 @@ export const SendReceive: React.FC = () => {
           style={{
             flex: 1,
             background: activeMode === "send" ? "var(--color-primary)" : "transparent",
-            color: activeMode === "send" ? "var(--color-fg)" : "var(--color-fg-muted)",
+            color: activeMode === "send" ? "var(--color-on-primary)" : "var(--color-fg-muted)",
             borderRadius: "10px",
             boxShadow: "none"
           }}
@@ -201,7 +201,7 @@ export const SendReceive: React.FC = () => {
           style={{
             flex: 1,
             background: activeMode === "receive" ? "var(--color-primary)" : "transparent",
-            color: activeMode === "receive" ? "var(--color-fg)" : "var(--color-fg-muted)",
+            color: activeMode === "receive" ? "var(--color-on-primary)" : "var(--color-fg-muted)",
             borderRadius: "10px",
             boxShadow: "none"
           }}
