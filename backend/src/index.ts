@@ -40,7 +40,7 @@ mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log("Successfully connected to MongoDB database.");
-    app.listen(PORT, () => {
+    app.listen(Number(PORT), "0.0.0.0", () => {
       console.log(`Backend server is running on port ${PORT}`);
     });
   })
