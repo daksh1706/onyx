@@ -299,33 +299,45 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setLpBalance(formatEther(lpBal));
 
         // 5. Fetch reserves
-        const resA = await swapContract.reserveA();
-        const resB = await swapContract.reserveB();
-        setReserves({
-          reserveA: formatEther(resA),
-          reserveB: formatUnits(resB, 6),
-        });
+        try {
+          const resA = await swapContract.reserveA();
+          const resB = await swapContract.reserveB();
+          setReserves({
+            reserveA: formatEther(resA),
+            reserveB: formatUnits(resB, 6),
+          });
+        } catch (err) {
+          console.warn("Failed to fetch SimpleSwap reserves:", err);
+        }
 
         // 5b. Fetch OnyxSwap reserves
-        if (CONTRACT_ADDRESSES.OnyxSwap) {
-          const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
-          const oResA = await onyxSwapContract.reserveA();
-          const oResB = await onyxSwapContract.reserveB();
-          setOnyxReserves({
-            reserveA: formatEther(oResA),
-            reserveB: formatUnits(oResB, 6),
-          });
+        try {
+          if (CONTRACT_ADDRESSES.OnyxSwap) {
+            const onyxSwapContract = new Contract(CONTRACT_ADDRESSES.OnyxSwap, SIMPLESWAP_ABI, provider);
+            const oResA = await onyxSwapContract.reserveA();
+            const oResB = await onyxSwapContract.reserveB();
+            setOnyxReserves({
+              reserveA: formatEther(oResA),
+              reserveB: formatUnits(oResB, 6),
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch OnyxSwap reserves:", err);
         }
 
         // 5c. Fetch MycOnyxSwap reserves
-        if (CONTRACT_ADDRESSES.MycOnyxSwap) {
-          const mycOnyxSwapContract = new Contract(CONTRACT_ADDRESSES.MycOnyxSwap, SIMPLESWAP_ABI, provider);
-          const moResA = await mycOnyxSwapContract.reserveA();
-          const moResB = await mycOnyxSwapContract.reserveB();
-          setMycOnyxReserves({
-            reserveA: formatEther(moResA),
-            reserveB: formatEther(moResB),
-          });
+        try {
+          if (CONTRACT_ADDRESSES.MycOnyxSwap) {
+            const mycOnyxSwapContract = new Contract(CONTRACT_ADDRESSES.MycOnyxSwap, SIMPLESWAP_ABI, provider);
+            const moResA = await mycOnyxSwapContract.reserveA();
+            const moResB = await mycOnyxSwapContract.reserveB();
+            setMycOnyxReserves({
+              reserveA: formatEther(moResA),
+              reserveB: formatEther(moResB),
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to fetch MycOnyxSwap reserves:", err);
         }
 
         // 6. Fetch Tx History (from backend cache if authenticated, else from blockchain logs)
