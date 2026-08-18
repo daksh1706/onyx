@@ -981,6 +981,83 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (!signer) throw new Error("Wallet not connected");
 
+    const isDirectMycOnyx = (tokenInSymbol === "MYC" && tokenOutSymbol === "ONYX") || (tokenInSymbol === "ONYX" && tokenOutSymbol === "MYC");
+    const useMultiHop = isDirectMycOnyx && (!mycOnyxReserves || parseFloat(mycOnyxReserves.reserveA) === 0);
+
+    if (useMultiHop) {
+      console.log("Direct MYC/ONYX pool is not deployed or has no reserves. Routing via INR (multi-hop)...");
+      
+      const firstSwapAddress = tokenInSymbol === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap;
+      const secondSwapAddress = tokenOutSymbol === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap;
+      
+      const firstSwapContract = new Contract(firstSwapAddress, SIMPLESWAP_ABI, signer);
+      const secondSwapContract = new Contract(secondSwapAddress, SIMPLESWAP_ABI, signer);
+      
+      const tokenInAddress = tokenInSymbol === "MYC" ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.CustomToken;
+      const rawAmountIn = parseUnits(amountIn, 18);
+      
+      // Calculate estimated INR out
+      const rawInrEstimated = await firstSwapContract.getAmountOut(tokenInAddress, rawAmountIn);
+      const minInrOut = (rawInrEstimated * 99n) / 100n; // 1% slippage
+      
+      // 1. Approve first pool if needed
+      const tokenContract = new Contract(tokenInAddress, MYCOIN_ABI, signer);
+      const allowance1 = await tokenContract.allowance(address, firstSwapAddress);
+      if (allowance1 < rawAmountIn) {
+        console.log("Approving first pool...");
+        const approveTx = await tokenContract.approve(firstSwapAddress, ethers.MaxUint256);
+        await approveTx.wait();
+      }
+      
+      // Record INR balance before first swap
+      const inrContract = new Contract(CONTRACT_ADDRESSES.MockINR, MOCKINR_ABI, signer);
+      const inrBalBefore = await inrContract.balanceOf(address);
+      
+      // Swap In -> INR
+      console.log("Executing first hop (TokenIn -> INR)...");
+      const tx1 = await firstSwapContract.swap(tokenInAddress, rawAmountIn, minInrOut);
+      await tx1.wait();
+      
+      // Check how much INR was received
+      const inrBalAfter = await inrContract.balanceOf(address);
+      const inrReceived = inrBalAfter - inrBalBefore;
+      if (inrReceived.toString() === "0") {
+        throw new Error("No INR received from the first hop swap");
+      }
+      
+      // 2. Approve second pool for INR if needed
+      const allowance2 = await inrContract.allowance(address, secondSwapAddress);
+      if (allowance2 < inrReceived) {
+        console.log("Approving second pool...");
+        const approveTx = await inrContract.approve(secondSwapAddress, ethers.MaxUint256);
+        await approveTx.wait();
+      }
+      
+      // Calculate final tokenOut estimated
+      const rawOutEstimated = await secondSwapContract.getAmountOut(CONTRACT_ADDRESSES.MockINR, inrReceived);
+      const minTokenOut = (rawOutEstimated * 99n) / 100n; // 1% slippage
+      
+      // Swap INR -> tokenOut
+      console.log("Executing second hop (INR -> TokenOut)...");
+      const tx2 = await secondSwapContract.swap(CONTRACT_ADDRESSES.MockINR, inrReceived, minTokenOut);
+      
+      tx2.wait().then(async (receipt: any) => {
+        if (receipt) {
+          await cacheTransaction({
+            hash: tx2.hash,
+            type: "Swap",
+            token: `${tokenInSymbol} → ${tokenOutSymbol}`,
+            amount: `${amountIn} → ${formatUnits(rawOutEstimated, 18)}`,
+            blockNumber: receipt.blockNumber,
+            timestamp: Date.now()
+          });
+          refreshState();
+        }
+      }).catch(console.error);
+      
+      return tx2;
+    }
+
     let swapContractAddress = CONTRACT_ADDRESSES.SimpleSwap;
     if ((tokenInSymbol === "MYC" && tokenOutSymbol === "ONYX") || (tokenInSymbol === "ONYX" && tokenOutSymbol === "MYC")) {
       swapContractAddress = CONTRACT_ADDRESSES.MycOnyxSwap;

@@ -123,6 +123,25 @@ export const Swap: React.FC = () => {
     setQuoteLoading(true);
     try {
       const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
+      const useMultiHop = isMycOnyxSwap && (!mycOnyxReserves || parseFloat(mycOnyxReserves.reserveA) === 0);
+
+      if (useMultiHop) {
+        const firstSwapAddress = fromToken === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap;
+        const secondSwapAddress = toToken === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap;
+        
+        const firstSwap = new Contract(firstSwapAddress, SIMPLESWAP_ABI, provider);
+        const secondSwap = new Contract(secondSwapAddress, SIMPLESWAP_ABI, provider);
+
+        const tokenInAddress = fromToken === "MYC" ? CONTRACT_ADDRESSES.MyCoin : CONTRACT_ADDRESSES.CustomToken;
+        const rawIn = parseUnits(amountIn, 18);
+        const rawInrOut = await firstSwap.getAmountOut(tokenInAddress, rawIn);
+        const rawOut = await secondSwap.getAmountOut(CONTRACT_ADDRESSES.MockINR, rawInrOut);
+        const formattedOut = formatUnits(rawOut, 18);
+
+        setAmountOut(formattedOut);
+        return;
+      }
+
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
       const swapContractAddress = isMycOnyxSwap 
         ? CONTRACT_ADDRESSES.MycOnyxSwap 
@@ -159,7 +178,7 @@ export const Swap: React.FC = () => {
     } finally {
       setQuoteLoading(false);
     }
-  }, [fromToken, toToken, amountIn, provider, contractConfigured, isValidPair]);
+  }, [fromToken, toToken, amountIn, provider, contractConfigured, isValidPair, mycOnyxReserves]);
 
   // Trigger quote refresh
   useEffect(() => {
@@ -180,12 +199,15 @@ export const Swap: React.FC = () => {
     setCheckingAllowance(true);
     try {
       const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
+      const useMultiHop = isMycOnyxSwap && (!mycOnyxReserves || parseFloat(mycOnyxReserves.reserveA) === 0);
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
-      const swapContractAddress = isMycOnyxSwap 
-        ? CONTRACT_ADDRESSES.MycOnyxSwap 
-        : isOnyxSwap 
-          ? CONTRACT_ADDRESSES.OnyxSwap 
-          : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContractAddress = useMultiHop
+        ? (fromToken === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap)
+        : (isMycOnyxSwap 
+          ? CONTRACT_ADDRESSES.MycOnyxSwap 
+          : isOnyxSwap 
+            ? CONTRACT_ADDRESSES.OnyxSwap 
+            : CONTRACT_ADDRESSES.SimpleSwap);
 
       let tokenInAddress = "";
       let tokenABI: any = MYCOIN_ABI;
@@ -215,7 +237,7 @@ export const Swap: React.FC = () => {
     } finally {
       setCheckingAllowance(false);
     }
-  }, [address, fromToken, toToken, amountIn, provider, contractConfigured, isValidPair]);
+  }, [address, fromToken, toToken, amountIn, provider, contractConfigured, isValidPair, mycOnyxReserves]);
 
   useEffect(() => {
     checkAllowance();
@@ -230,12 +252,15 @@ export const Swap: React.FC = () => {
 
     try {
       const isMycOnyxSwap = (fromToken === "MYC" && toToken === "ONYX") || (fromToken === "ONYX" && toToken === "MYC");
+      const useMultiHop = isMycOnyxSwap && (!mycOnyxReserves || parseFloat(mycOnyxReserves.reserveA) === 0);
       const isOnyxSwap = fromToken === "ONYX" || toToken === "ONYX";
-      const swapContractAddress = isMycOnyxSwap 
-        ? CONTRACT_ADDRESSES.MycOnyxSwap 
-        : isOnyxSwap 
-          ? CONTRACT_ADDRESSES.OnyxSwap 
-          : CONTRACT_ADDRESSES.SimpleSwap;
+      const swapContractAddress = useMultiHop
+        ? (fromToken === "MYC" ? CONTRACT_ADDRESSES.SimpleSwap : CONTRACT_ADDRESSES.OnyxSwap)
+        : (isMycOnyxSwap 
+          ? CONTRACT_ADDRESSES.MycOnyxSwap 
+          : isOnyxSwap 
+            ? CONTRACT_ADDRESSES.OnyxSwap 
+            : CONTRACT_ADDRESSES.SimpleSwap);
 
       let tokenInAddress = "";
       let tokenABI: any = MYCOIN_ABI;

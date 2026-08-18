@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Share2, Star, Landmark } from "lucide-react";
 export const Markets: React.FC = () => {
   const { reserves, onyxReserves, address } = useWallet();
 
-  const [selectedPair, setSelectedPair] = useState<"MYC" | "ONYX" | "ETH" | "INR">("MYC");
+  const [selectedPair, setSelectedPair] = useState<"MYC" | "ONYX" | "ETH">("MYC");
   const [timeframe, setTimeframe] = useState<"24h" | "1W" | "1M" | "1Y" | "All">("24h");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
@@ -223,7 +223,7 @@ export const Markets: React.FC = () => {
               Select Asset Pair
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              {(["MYC", "ONYX", "ETH", "INR"] as const).map((pair) => (
+              {(["MYC", "ONYX", "ETH"] as const).map((pair) => (
                 <button
                   key={pair}
                   className="btn"
