@@ -41,8 +41,8 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
-          cd frontend/ios/App/build/Build/Products/Debug-iphonesimulator
+          cd build/Build/Products/Debug-iphonesimulator
           zip -r OnyxWallet_Simulator.zip App.app
     artifacts:
-      - frontend/ios/App/build/Build/Products/Debug-iphonesimulator/*.zip
+      - build/Build/Products/Debug-iphonesimulator/*.zip
       - /tmp/xcodebuild_logs/*.log
