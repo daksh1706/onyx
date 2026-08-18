@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
-import { ArrowDown, ArrowUp, Share2, Star, Landmark } from "lucide-react";
+import { ArrowDown, ArrowUp, Share2, Star } from "lucide-react";
 
 export const Markets: React.FC = () => {
   const { reserves, onyxReserves, address } = useWallet();
@@ -287,16 +287,7 @@ export const Markets: React.FC = () => {
             </div>
           </section>
 
-          {/* Quick Pool Reserve Ratio Badge */}
-          <section className="glass-panel" style={{ padding: "16px", borderRadius: "16px", border: "1px solid var(--border-glass)" }}>
-            <h4 style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-              <Landmark size={12} style={{ color: "var(--color-primary)" }} />
-              On-Chain Pricing Method
-            </h4>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
-              Determined fully on-chain by constant product Automated Market Maker (AMM) reserves. Current spot rate is: {stats.name} reserve divided by INR reserve.
-            </p>
-          </section>
+
         </div>
 
         {/* Right Column - CoinMarketCap Chart (grid-col-8) */}

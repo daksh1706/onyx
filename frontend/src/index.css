@@ -1,29 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-headline: 'Space Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Obsidian Modern Dark-Blue Theme (Updated Portfolio & Analytics Style) */
-  --bg-dark: #0b1326; /* Deep dark blue base canvas */
-  --bg-card: rgba(23, 31, 51, 0.7); /* Translucent panel background */
-  --bg-card-hover: rgba(34, 42, 61, 0.7);
-  --bg-container: #131b2e; /* Sidebar background */
+  /* Onyx Stitch Premium Matte-Dark Theme */
+  --bg-dark: #121414; /* Void background */
+  --bg-card: rgba(30, 32, 32, 0.75); /* Surface-container level 1 */
+  --bg-card-hover: rgba(40, 42, 43, 0.8);
+  --bg-container: #1a1c1c; /* Surface-container low */
   
-  --color-primary: #00dbe9; /* Neon Cyan */
-  --color-primary-glow: rgba(0, 219, 233, 0.15);
+  --color-primary: #bec2ff; /* Lavender Blue Accent */
+  --color-primary-glow: rgba(190, 194, 255, 0.15);
   
-  --color-secondary: #d0bcff; /* Lavender */
-  --color-secondary-glow: rgba(208, 188, 255, 0.12);
+  --color-secondary: #c8c6c5; /* Matte Gray */
+  --color-secondary-glow: rgba(200, 198, 197, 0.12);
   
-  --color-accent: #ffe083; /* Tertiary peach highlight */
-  --color-accent-glow: rgba(255, 224, 131, 0.2);
+  --color-accent: #ffb4a9; /* Soft Peach Coral */
+  --color-accent-glow: rgba(255, 180, 169, 0.2);
   
-  --text-main: #dae2fd; /* Main silver-blue text */
-  --text-muted: #849495; /* Muted slate text */
+  --text-main: #e2e2e2; /* On-surface main text */
+  --text-muted: #c5c4db; /* On-surface-variant muted text */
   
-  --border-glass: rgba(132, 148, 149, 0.15);
-  --border-glass-hover: rgba(132, 148, 149, 0.3);
+  --border-glass: rgba(143, 143, 164, 0.15); /* Outline transparent border */
+  --border-glass-hover: rgba(143, 143, 164, 0.3);
 
   /* Elevation Shadows & Inner Glows */
   --shadow-neon: 0 12px 36px rgba(0, 0, 0, 0.4);
@@ -87,6 +88,12 @@ body {
   overflow-x: hidden;
   position: relative;
   line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-headline);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* Glassmorphic Cards (Obsidian Style) */
@@ -553,7 +560,7 @@ body {
 
   .main-content {
     margin-left: 0;
-    padding-bottom: calc(85px + env(safe-area-inset-bottom)); /* Space for bottom nav */
+    padding-bottom: max(100px, calc(85px + env(safe-area-inset-bottom))); /* Space for bottom nav */
   }
 
   .top-header {
@@ -564,7 +571,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(12px + env(safe-area-inset-top)) 16px 12px 16px;
+    padding: max(47px, calc(12px + env(safe-area-inset-top))) 16px 12px 16px;
     background: var(--bg-container);
     border-bottom: 1px solid var(--border-glass);
     position: sticky;
@@ -597,7 +604,7 @@ body {
     -webkit-backdrop-filter: blur(15px);
     border-top: 1px solid var(--border-glass);
     justify-content: space-around;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) 16px;
+    padding: 12px 12px max(34px, calc(12px + env(safe-area-inset-bottom))) 12px;
     z-index: 100;
   }
 

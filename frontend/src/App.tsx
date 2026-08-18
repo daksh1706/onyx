@@ -255,7 +255,7 @@ function MainApp() {
           onClick={() => setActiveTab("transactions")}
         >
           <History size={20} />
-          Tx History
+          History
         </button>
       </nav>
     </div>
