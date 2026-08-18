@@ -4,60 +4,61 @@
   --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* The New Approved Design Tokens */
-  --color-bg: #ffffff;
-  --color-surface: #f4f4f7;
-  --color-surface2: #0500ff;
-  --color-primary: #dbdce5;
-  --color-accent: #007aff;
-  --color-border: #cccccc;
-  --color-border-strong: #1b1b1c;
-  --color-surface-8: #171717;
-  --color-fg: #000000;
-  --color-fg-muted: #4e4e50;
-  --color-fg-inverse: #ffffff;
-  --color-fg-4: #0500ff;
-  --color-fg-5: #242426;
-  --color-fg-6: #cccccc;
-  --color-fg-7: #2eccff;
-  --color-on-primary: #000000;
-  --color-on-accent: #FFFFFF;
-  --color-primary-hover: #cccdd6;
-  --color-primary-active: #c2c3cc;
-  --color-info: #2868A8;
-  --color-on-info: #FFFFFF;
-  --color-success: #2F8A5B;
-  --color-on-success: #FFFFFF;
-  --color-warning: #9E7422;
-  --color-on-warning: #FFFFFF;
-  --color-danger: #A13D34;
-  --color-on-danger: #FFFFFF;
-  --color-focus-ring: #dbdce5;
+  /* Obsidian Modern Dark-Blue Theme (Updated Portfolio & Analytics Style) */
+  --bg-dark: #0b1326; /* Deep dark blue base canvas */
+  --bg-card: rgba(23, 31, 51, 0.7); /* Translucent panel background */
+  --bg-card-hover: rgba(34, 42, 61, 0.7);
+  --bg-container: #131b2e; /* Sidebar background */
+  
+  --color-primary: #00dbe9; /* Neon Cyan */
+  --color-primary-glow: rgba(0, 219, 233, 0.15);
+  
+  --color-secondary: #d0bcff; /* Lavender */
+  --color-secondary-glow: rgba(208, 188, 255, 0.12);
+  
+  --color-accent: #ffe083; /* Tertiary peach highlight */
+  --color-accent-glow: rgba(255, 224, 131, 0.2);
+  
+  --text-main: #dae2fd; /* Main silver-blue text */
+  --text-muted: #849495; /* Muted slate text */
+  
+  --border-glass: rgba(132, 148, 149, 0.15);
+  --border-glass-hover: rgba(132, 148, 149, 0.3);
 
-  /* Compatibility Mapping to existing layout classes */
-  --bg-dark: var(--color-bg);
-  --bg-card: var(--color-surface);
-  --bg-card-hover: #eaeaef;
-  --bg-container: var(--color-surface);
-  
-  --color-primary-glow: rgba(0, 122, 255, 0.1);
-  --color-secondary: var(--color-accent);
-  --color-secondary-glow: rgba(0, 122, 255, 0.08);
-  
-  --color-accent-glow: rgba(5, 0, 255, 0.15);
-  
-  --text-main: var(--color-fg);
-  --text-muted: var(--color-fg-muted);
-  
-  --border-glass: rgba(0, 0, 0, 0.08);
-  --border-glass-hover: rgba(0, 0, 0, 0.15);
-
-  /* Elevation Shadows & Soft Border Radii */
-  --shadow-neon: 0 10px 30px rgba(0, 0, 0, 0.04);
-  --shadow-deep: 0 20px 40px rgba(0, 0, 0, 0.08);
-  --shadow-inner: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  /* Elevation Shadows & Inner Glows */
+  --shadow-neon: 0 12px 36px rgba(0, 0, 0, 0.4);
+  --shadow-deep: 0 24px 48px rgba(0, 0, 0, 0.6);
+  --shadow-inner: inset 0 1px 0 0 rgba(255, 255, 255, 0.05); /* Soft card top edge reflection */
   
   --transition-smooth: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* New Tokens Compatibility Mapping */
+  --color-bg: var(--bg-dark);
+  --color-surface: var(--bg-card);
+  --color-surface2: var(--bg-container);
+  --color-border: var(--border-glass);
+  --color-border-strong: var(--border-glass-hover);
+  --color-surface-8: #171717;
+  --color-fg: var(--text-main);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-inverse: #ffffff;
+  --color-fg-4: var(--color-primary);
+  --color-fg-5: var(--text-main);
+  --color-fg-6: var(--border-glass);
+  --color-fg-7: #2eccff;
+  --color-on-primary: #0b1326;
+  --color-on-accent: #0b1326;
+  --color-primary-hover: var(--bg-card-hover);
+  --color-primary-active: var(--bg-container);
+  --color-info: #00dbe9;
+  --color-on-info: #0b1326;
+  --color-success: #4edea3;
+  --color-on-success: #0b1326;
+  --color-warning: #ffe083;
+  --color-on-warning: #0b1326;
+  --color-danger: rgba(255, 0, 85, 0.85);
+  --color-on-danger: #ffffff;
+  --color-focus-ring: var(--color-primary);
 }
 
 .glass-panel {
