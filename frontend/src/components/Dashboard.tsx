@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon } from "lucide-react";
+import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, X } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap") => void;
@@ -27,6 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   const [faucetMessage, setFaucetMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [cooldownLeft, setCooldownLeft] = useState<number>(0);
   const [timeFilter, setTimeFilter] = useState<string>("1M");
+  const [showGuide, setShowGuide] = useState(() => !localStorage.getItem("onyx_hide_sandbox_guide"));
 
   // Cooldown validation for faucet
   const checkFaucetCooldown = useCallback(async () => {
@@ -139,84 +140,112 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     <div className="fade-in">
       
       {/* Onboarding Guide Callout Panel */}
-      <section className="glass-panel" style={{
-        borderRadius: "16px",
-        padding: "20px 24px",
-        marginBottom: "32px",
-        borderLeft: "4px solid var(--color-success)",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-success)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Quickstart Sandbox Guide
-          </h3>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Status: Local Dev Mode</span>
-        </div>
-        
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "20px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{
-                background: "var(--color-primary)",
-                color: "var(--color-fg-inverse)",
-                width: "20px",
-                height: "20px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "11px"
-              }}>1</span>
-              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Claim Faucet Tokens</h4>
-            </div>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              Use the <strong>Developer Faucet</strong> card below to instantly claim 100 MYC, 100 INR, and 100 ONYX test tokens.
-            </p>
+      {showGuide && (
+        <section className="glass-panel" style={{
+          borderRadius: "16px",
+          padding: "20px 24px",
+          marginBottom: "32px",
+          borderLeft: "4px solid var(--color-success)",
+          position: "relative"
+        }}>
+          <button
+            onClick={() => {
+              setShowGuide(false);
+              localStorage.setItem("onyx_hide_sandbox_guide", "true");
+            }}
+            style={{
+              position: "absolute",
+              top: "14px",
+              right: "14px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "none",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px",
+              borderRadius: "50%",
+              width: "24px",
+              height: "24px",
+              transition: "all 0.2s"
+            }}
+          >
+            <X size={14} />
+          </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingRight: "20px" }}>
+            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-success)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Quickstart Sandbox Guide
+            </h3>
+            <span className="hide-on-mobile" style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Status: Local Dev Mode</span>
           </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{
-                background: "var(--color-primary)",
-                color: "var(--color-fg-inverse)",
-                width: "20px",
-                height: "20px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "11px"
-              }}>2</span>
-              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Import Custom Tokens</h4>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{
+                  background: "var(--color-primary)",
+                  color: "var(--color-fg-inverse)",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: "11px"
+                }}>1</span>
+                <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Claim Faucet Tokens</h4>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                Use the <strong>Developer Faucet</strong> card below to instantly claim 100 MYC, 100 INR, and 100 ONYX test tokens.
+              </p>
             </div>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              In MetaMask, click <strong>Import Token ➔ Custom Token</strong> and paste the contract addresses to see your balances.
-            </p>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{
-                background: "var(--color-primary)",
-                color: "var(--color-fg-inverse)",
-                width: "20px",
-                height: "20px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "11px"
-              }}>3</span>
-              <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Swap on AMM Pool</h4>
+  
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{
+                  background: "var(--color-primary)",
+                  color: "var(--color-fg-inverse)",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: "11px"
+                }}>2</span>
+                <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Import Custom Tokens</h4>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                In MetaMask, click <strong>Import Token ➔ Custom Token</strong> and paste the contract addresses to see your balances.
+              </p>
             </div>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-              Navigate to the <strong>Swap</strong> tab to trade assets. Supported liquidity pairs are <strong>MYC ➔ INR</strong> and <strong>ONYX ➔ INR</strong>.
-            </p>
+  
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{
+                  background: "var(--color-primary)",
+                  color: "var(--color-fg-inverse)",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: "11px"
+                }}>3</span>
+                <h4 style={{ fontWeight: 600, fontSize: "13px" }}>Swap on AMM Pool</h4>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                Navigate to the <strong>Swap</strong> tab to trade assets. Supported liquidity pairs are <strong>MYC ➔ INR</strong> and <strong>ONYX ➔ INR</strong>.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Bento Grid */}
       <div className="dashboard-grid">

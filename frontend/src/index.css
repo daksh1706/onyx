@@ -553,7 +553,7 @@ body {
 
   .main-content {
     margin-left: 0;
-    padding-bottom: 96px; /* Space for bottom nav */
+    padding-bottom: calc(85px + env(safe-area-inset-bottom)); /* Space for bottom nav */
   }
 
   .top-header {
@@ -564,7 +564,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px 16px;
     background: var(--bg-container);
     border-bottom: 1px solid var(--border-glass);
     position: sticky;
@@ -597,7 +597,7 @@ body {
     -webkit-backdrop-filter: blur(15px);
     border-top: 1px solid var(--border-glass);
     justify-content: space-around;
-    padding: 12px 16px 24px 16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) 16px;
     z-index: 100;
   }
 
@@ -685,5 +685,11 @@ body {
   }
   .grid-col-8, .grid-col-4 {
     grid-column: span 12;
+  }
+}
+
+@media (max-width: 600px) {
+  .hide-on-mobile {
+    display: none !important;
   }
 }
