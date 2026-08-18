@@ -1,0 +1,47 @@
+workflows:
+  capacitor-ios-workflow:
+    name: Onyx Wallet Capacitor iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc # Change to app_store or development as needed
+        bundle_identifier: com.onyx.wallet
+      vars:
+        XCODE_WORKSPACE: "frontend/ios/App/App.xcodeproj/project.xcworkspace"
+        XCODE_SCHEME: "App"
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          cd frontend
+          npm install
+      - name: Compile web assets
+        script: |
+          cd frontend
+          npm run build
+      - name: Sync Capacitor assets
+        script: |
+          cd frontend
+          npx cap sync ios
+      - name: Install Pods (if Podfile exists)
+        script: |
+          cd frontend/ios/App
+          if [ -f "Podfile" ]; then
+            pod install
+          else
+            echo "Using Swift Package Manager (Capacitor 6 default). Skipping Pod install."
+          fi
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          cd frontend/ios/App
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - frontend/ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
