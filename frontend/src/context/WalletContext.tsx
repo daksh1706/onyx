@@ -1268,9 +1268,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
         await refreshState();
         return { hash: data.txHash } as any;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Faucet claim failed");
       }
-    } catch (backendErr) {
-      console.warn("Backend faucet relayer error, attempting direct contract call:", backendErr);
+    } catch (backendErr: any) {
+      console.warn("Backend faucet relayer error:", backendErr);
+      if (backendErr.message && !backendErr.message.includes("fetch")) {
+        throw backendErr;
+      }
     }
 
     // 2. Fallback to direct smart contract call if relayer is unavailable

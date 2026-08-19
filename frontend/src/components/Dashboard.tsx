@@ -958,8 +958,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹10,625.05</div>
-                    <div className="mobile-asset-balance">2.50 Shares</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Shares</div>
                   </div>
                 </div>
 
@@ -973,8 +973,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹6,400.05</div>
-                    <div className="mobile-asset-balance">0.50 Shares</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Shares</div>
                   </div>
                 </div>
 
@@ -988,8 +988,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹10,750.00</div>
-                    <div className="mobile-asset-balance">5.00 Shares</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Shares</div>
                   </div>
                 </div>
               </>
@@ -1007,8 +1007,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹23,500.00</div>
-                    <div className="mobile-asset-balance">100.00 Units</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Units</div>
                   </div>
                 </div>
 
@@ -1022,8 +1022,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹11,400.00</div>
-                    <div className="mobile-asset-balance">4.00 Shares</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Shares</div>
                   </div>
                 </div>
 
@@ -1037,8 +1037,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
                   <div className="mobile-asset-right">
-                    <div className="mobile-asset-value">₹21,250.00</div>
-                    <div className="mobile-asset-balance">250.00 Units</div>
+                    <div className="mobile-asset-value">₹0.00</div>
+                    <div className="mobile-asset-balance">0.00 Units</div>
                   </div>
                 </div>
               </>
