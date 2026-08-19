@@ -1,9 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
-import { ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCcw, Gift, Cpu, Landmark } from "lucide-react";
+import { ExternalLink, ArrowUpRight, ArrowDownLeft, RefreshCcw, Gift, Cpu, Landmark, RefreshCw } from "lucide-react";
 
 export const TxHistory: React.FC = () => {
-  const { transactions, loading, contractConfigured } = useWallet();
+  const { transactions, loading, contractConfigured, refreshState } = useWallet();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshState();
+    } catch (e) {
+      console.error("Failed to refresh transactions:", e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -24,9 +36,28 @@ export const TxHistory: React.FC = () => {
 
   return (
     <div className="glass-card fade-in">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h3 style={{ fontSize: "20px" }}>Transaction History</h3>
-        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Last 100k blocks</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
+        <div>
+          <h3 style={{ fontSize: "20px", margin: 0 }}>Transaction History</h3>
+          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Sepolia on-chain & vault records</span>
+        </div>
+        <button
+          className="btn btn-secondary"
+          onClick={handleRefresh}
+          disabled={isRefreshing || loading}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "8px 14px",
+            fontSize: "12px",
+            borderRadius: "8px",
+            fontWeight: 600
+          }}
+        >
+          <RefreshCw size={13} className={isRefreshing || loading ? "spin" : ""} />
+          <span>{isRefreshing || loading ? "Refreshing..." : "Refresh History"}</span>
+        </button>
       </div>
 
       {!contractConfigured ? (

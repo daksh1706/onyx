@@ -74,35 +74,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     }
   };
 
-  // Cooldown validation for faucet
+  const API_URL = import.meta.env.VITE_API_URL || "https://onyx-3yxt.onrender.com";
+
+  // Cooldown validation for faucet (24 hours)
   const checkFaucetCooldown = useCallback(async () => {
-    if (!address || !provider || !contractConfigured) return;
+    if (!address) return;
 
-    try {
-      const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, provider);
-      const nextTime = await faucetContract.nextAccessTime(address);
-      const nextTimestamp = Number(nextTime);
-      const currentTimestamp = Math.floor(Date.now() / 1000);
-
-      if (nextTimestamp > currentTimestamp) {
-        setCooldownLeft(nextTimestamp - currentTimestamp);
-      } else {
-        setCooldownLeft(0);
+    // 1. Check local storage persistent timer first
+    const localLast = localStorage.getItem(`onyx_faucet_last_claim_${address.toLowerCase()}`);
+    if (localLast) {
+      const elapsed = Date.now() - parseInt(localLast, 10);
+      const remaining = Math.floor((24 * 3600 * 1000 - elapsed) / 1000);
+      if (remaining > 0) {
+        setCooldownLeft(remaining);
+        return;
       }
-    } catch (err) {
-      console.error("Error checking faucet cooldown:", err);
     }
-  }, [address, provider, contractConfigured]);
+
+    // 2. Check backend API cooldown
+    try {
+      const res = await fetch(`${API_URL}/api/faucet/cooldown/${address}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.cooldownLeft > 0) {
+          setCooldownLeft(data.cooldownLeft);
+          return;
+        }
+      }
+    } catch (e) {
+      // fallback
+    }
+
+    // 3. Fallback to smart contract
+    if (provider && contractConfigured) {
+      try {
+        const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, provider);
+        const nextTime = await faucetContract.nextAccessTime(address);
+        const nextTimestamp = Number(nextTime);
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+
+        if (nextTimestamp > currentTimestamp) {
+          setCooldownLeft(nextTimestamp - currentTimestamp);
+        } else {
+          setCooldownLeft(0);
+        }
+      } catch (err) {
+        console.error("Error checking faucet cooldown:", err);
+      }
+    }
+  }, [address, provider, contractConfigured, API_URL]);
 
   useEffect(() => {
     checkFaucetCooldown();
-    const interval = setInterval(checkFaucetCooldown, 15000);
+    const interval = setInterval(checkFaucetCooldown, 30000);
     return () => clearInterval(interval);
   }, [checkFaucetCooldown]);
 
   useEffect(() => {
     if (cooldownLeft > 0) {
-      const timer = setTimeout(() => setCooldownLeft(cooldownLeft - 1), 1000);
+      const timer = setTimeout(() => setCooldownLeft((prev) => Math.max(0, prev - 1)), 1000);
       return () => clearTimeout(timer);
     }
   }, [cooldownLeft]);
@@ -129,15 +159,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         await tx.wait();
       }
 
+      // Record 24-hour cooldown locally
+      if (address) {
+        localStorage.setItem(`onyx_faucet_last_claim_${address.toLowerCase()}`, String(Date.now()));
+      }
+      setCooldownLeft(24 * 3600);
+
       setFaucetMessage({ text: "100 MYC, 100 INR, and 100 ONYX test tokens successfully claimed!", error: false });
       await refreshState();
-      checkFaucetCooldown();
       setTimeout(() => setFaucetMessage(null), 6000);
     } catch (err: any) {
       console.error("Faucet claim failed:", err);
       let errMsg = err.message || "Claim failed.";
-      if (err.message && err.message.includes("Faucet: Cooldown active")) {
-        errMsg = "Cooldown active. Please wait before claiming again.";
+      if (err.message && (err.message.includes("cooldown") || err.message.includes("Cooldown"))) {
+        errMsg = err.message;
       } else if (err.message && err.message.includes("Insufficient")) {
         errMsg = "Faucet reserve low.";
       }
@@ -165,9 +200,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const onyxVal = parseFloat(onyxBalance || "0") * onyxPrice;
   const totalValInr = ethVal + mycVal + inrVal + onyxVal;
 
-  // Address seed to generate unique, stable gain percent per address (only if user has non-zero balance)
-  const addressSeed = address ? parseInt(address.slice(2, 10), 16) : 42;
-  const gainPercent = totalValInr > 0 ? 1.0 + (addressSeed % 90) / 10 : 0;
+  // Real-time market gain % derived from live AMM pool spot rate fluctuations
+  const rawMycBase = 0.5; // Baseline pool ratio
+  const rawOnyxBase = 0.5;
+  const mycReturn = rawMycPrice > 0 ? ((rawMycPrice - rawMycBase) / rawMycBase) * 100 : 0;
+  const onyxReturn = rawOnyxPrice > 0 ? ((rawOnyxPrice - rawOnyxBase) / rawOnyxBase) * 100 : 0;
+  const gainPercent = totalValInr > 0 ? ((mycVal * mycReturn + onyxVal * onyxReturn) / totalValInr) : 0;
   const gainInr = totalValInr * (gainPercent / 100);
 
   const formatNumber = (num: number, dec: number = 2) => {
@@ -178,7 +216,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs.toString().padStart(2, "0")}s`;
+    }
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
   };
 
   // Donut SVG ratio calculations

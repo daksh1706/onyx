@@ -22,10 +22,30 @@ const FAUCET_ABI = [
   "function withdraw(address token, uint256 amount) external",
 ];
 
-// In-memory cooldown tracking per address (60s minimum)
+// 24 hours cooldown in milliseconds
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const claimCooldowns = new Map<string, number>();
 
-// POST /api/faucet/claim - Dispenses 100 MYC, 100 INR, 100 ONYX test tokens only (no ETH)
+// GET /api/faucet/cooldown/:address - Checks remaining cooldown
+router.get("/cooldown/:address", (req: Request, res: Response) => {
+  const { address } = req.params;
+  if (!address || !isAddress(address)) {
+    return res.status(400).json({ error: "Invalid address" });
+  }
+  const recipient = getAddress(address.toLowerCase());
+  const lastClaim = claimCooldowns.get(recipient) || 0;
+  const now = Date.now();
+  const elapsed = now - lastClaim;
+
+  if (lastClaim > 0 && elapsed < COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+    return res.status(200).json({ cooldownLeft: remainingSeconds, canClaim: false });
+  }
+
+  return res.status(200).json({ cooldownLeft: 0, canClaim: true });
+});
+
+// POST /api/faucet/claim - Dispenses 100 MYC, 100 INR, 100 ONYX test tokens with 24hr cooldown
 router.post("/claim", async (req: Request, res: Response) => {
   try {
     const { address } = req.body;
@@ -37,11 +57,16 @@ router.post("/claim", async (req: Request, res: Response) => {
     const recipient = getAddress(address.toLowerCase());
     const now = Date.now();
     const lastClaim = claimCooldowns.get(recipient) || 0;
-    const cooldownMs = 60 * 1000; // 60s cooldown buffer
+    const elapsed = now - lastClaim;
 
-    if (now - lastClaim < cooldownMs) {
-      const waitSec = Math.ceil((cooldownMs - (now - lastClaim)) / 1000);
-      return res.status(429).json({ error: `Please wait ${waitSec}s before claiming again.` });
+    if (lastClaim > 0 && elapsed < COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      const waitHours = Math.floor(remainingSeconds / 3600);
+      const waitMins = Math.floor((remainingSeconds % 3600) / 60);
+      return res.status(429).json({
+        error: `24-hour cooldown active. Please wait ${waitHours}h ${waitMins}m before claiming again.`,
+        cooldownRemainingSeconds: remainingSeconds,
+      });
     }
 
     const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
@@ -87,6 +112,7 @@ router.post("/claim", async (req: Request, res: Response) => {
       inrTxHash: txInr.hash,
       blockNumber,
       amount: "100+100+100",
+      cooldownSeconds: 86400,
     });
   } catch (error: any) {
     console.error("Faucet claim error:", error);
