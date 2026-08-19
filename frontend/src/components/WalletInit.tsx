@@ -291,9 +291,6 @@ export const WalletInit: React.FC = () => {
         <div className="fade-in" style={{ textAlign: "left" }}>
           {!address ? (
             <div>
-              <p style={{ marginBottom: "20px", fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
-                Derive a brand new client-side wallet and save it to MongoDB.
-              </p>
               {renderUsernameInput()}
               <div className="form-group">
                 <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "6px" }}>

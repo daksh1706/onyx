@@ -734,7 +734,7 @@ function MainApp() {
                     style={{ padding: "8px 12px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                     disabled={bankLoading || !newBankName.trim()}
                   >
-                    <Plus size={14} /> {bankLoading ? "Linking to MongoDB..." : "Link Bank Account"}
+                    <Plus size={14} /> {bankLoading ? "Linking..." : "Link Bank Account"}
                   </button>
                 </form>
               </div>
