@@ -111,15 +111,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
     setFaucetMessage(null);
     try {
       const tx = await claimFaucet();
-      setFaucetMessage({ text: "Submitted transaction...", error: false });
-      await tx.wait();
+      if (tx && typeof tx.wait === "function") {
+        setFaucetMessage({ text: "Submitted transaction...", error: false });
+        await tx.wait();
+      }
       setFaucetMessage({ text: "Claimed 100 MYC, 100 INR, and 100 ONYX test tokens!", error: false });
-      refreshState();
+      await refreshState();
       checkFaucetCooldown();
       setTimeout(() => setFaucetMessage(null), 5000);
     } catch (err: any) {
       console.error("Faucet claim failed:", err);
-      let errMsg = "Claim failed.";
+      let errMsg = err.message || "Claim failed.";
       if (err.message && err.message.includes("Faucet: Cooldown active")) {
         errMsg = "Cooldown active.";
       } else if (err.message && err.message.includes("Insufficient")) {
