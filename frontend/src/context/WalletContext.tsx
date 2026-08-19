@@ -1038,9 +1038,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Cache the session password so biometric unlock can use it next time
       await setSecureItem("onyx_session_password", password);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Login failed:", err);
-      return false;
+      throw err;
     }
   };
 
