@@ -17,6 +17,26 @@ export const TxHistory: React.FC = () => {
     }
   };
 
+  const formatTxAmount = (rawAmount: string) => {
+    if (!rawAmount) return "";
+    if (rawAmount.includes("→") || rawAmount.includes("->")) {
+      const parts = rawAmount.split(/→|->/).map(p => p.trim());
+      if (parts.length === 2) {
+        const p0 = parseFloat(parts[0]);
+        const p1 = parseFloat(parts[1]);
+        const s0 = isNaN(p0) ? parts[0] : p0.toLocaleString(undefined, { maximumFractionDigits: 4 });
+        const s1 = isNaN(p1) ? parts[1] : p1.toLocaleString(undefined, { maximumFractionDigits: 4 });
+        return `${s0} → ${s1}`;
+      }
+    }
+    if (rawAmount.includes("+")) return rawAmount;
+    const num = parseFloat(rawAmount);
+    if (!isNaN(num)) {
+      return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    }
+    return rawAmount;
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case "Send":
@@ -112,7 +132,7 @@ export const TxHistory: React.FC = () => {
                     </td>
                     <td>
                       <span className="mono-text" style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-main)" }}>
-                        {tx.amount}
+                        {formatTxAmount(tx.amount)}
                       </span>
                     </td>
                     <td>
@@ -149,46 +169,63 @@ export const TxHistory: React.FC = () => {
             </table>
           </div>
 
-          {/* Mobile View (Visible on mobile only, prevents wide table overflow stretching) */}
-          <div className="hide-on-desktop" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Mobile View (Clean separate cards with spacious padding and no overlap) */}
+          <div className="hide-on-desktop" style={{ display: "flex", flexDirection: "column", gap: "16px", paddingBottom: "120px" }}>
             {transactions.map((tx) => (
               <div key={tx.hash} style={{
-                padding: "16px",
-                background: "rgba(255, 255, 255, 0.02)",
+                padding: "16px 18px",
+                background: "rgba(255, 255, 255, 0.03)",
                 border: "1px solid var(--border-glass)",
-                borderRadius: "16px",
+                borderRadius: "18px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px"
+                gap: "14px",
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.18)"
               }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <div style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "8px",
-                      background: "rgba(0, 0, 0, 0.04)",
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      background: "rgba(255, 255, 255, 0.05)",
                       display: "flex",
                       justifyContent: "center",
-                      alignItems: "center"
+                      alignItems: "center",
+                      flexShrink: 0
                     }}>
                       {getIcon(tx.type)}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-main)" }}>{tx.type}</div>
-                      <div className="mono-text" style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tx.token}</div>
+                      <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-main)" }}>{tx.type}</div>
+                      <div className="mono-text" style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tx.token}</div>
                     </div>
                   </div>
-                  <span className="mono-text" style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-main)" }}>
-                    {tx.amount}
+                  <span className="mono-text" style={{ 
+                    fontSize: "13px", 
+                    fontWeight: 700, 
+                    color: "var(--text-main)", 
+                    textAlign: "right",
+                    maxWidth: "55%",
+                    wordBreak: "break-all",
+                    lineHeight: "1.3"
+                  }}>
+                    {formatTxAmount(tx.amount)}
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", borderTop: "1px dashed var(--border-glass)", paddingTop: "8px" }}>
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center", 
+                  fontSize: "12px", 
+                  borderTop: "1px solid rgba(255, 255, 255, 0.06)", 
+                  paddingTop: "10px" 
+                }}>
                   <span style={{ color: "var(--text-muted)" }}>
                     {tx.type === "Send" ? "To: " : tx.type === "Receive" ? "From: " : "Party: "}
                     {tx.otherAddress ? (
-                      <span className="mono-text">{tx.otherAddress.slice(0, 6)}...{tx.otherAddress.slice(-4)}</span>
+                      <span className="mono-text" style={{ color: "var(--text-main)" }}>{tx.otherAddress.slice(0, 6)}...{tx.otherAddress.slice(-4)}</span>
                     ) : "-"}
                   </span>
                   <a
@@ -196,10 +233,20 @@ export const TxHistory: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono-text"
-                    style={{ color: "var(--color-accent)", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}
+                    style={{ 
+                      color: "var(--color-accent)", 
+                      textDecoration: "none", 
+                      display: "inline-flex", 
+                      alignItems: "center", 
+                      gap: "4px",
+                      background: "rgba(99, 102, 241, 0.08)",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "11px"
+                    }}
                   >
-                    {tx.hash.slice(0, 6)}...{tx.hash.slice(-4)}
-                    <ExternalLink size={12} />
+                    <span>{tx.hash.slice(0, 6)}...{tx.hash.slice(-4)}</span>
+                    <ExternalLink size={11} />
                   </a>
                 </div>
               </div>

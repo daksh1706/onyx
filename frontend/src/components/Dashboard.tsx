@@ -493,7 +493,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   {faucetLoading ? (
                     <>
                       <Loader2 size={16} className="spin" />
-                      <span>{faucetStage || "Processing..."}</span>
+                      <span>Processing Claim...</span>
                     </>
                   ) : cooldownLeft > 0 ? (
                     `Cooldown: ${formatCooldown(cooldownLeft)}`
@@ -932,7 +932,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 {faucetLoading ? (
                   <>
                     <Loader2 size={14} className="spin" />
-                    <span>{faucetStage || "Requesting..."}</span>
+                    <span>Processing...</span>
                   </>
                 ) : cooldownLeft > 0 ? (
                   `Cooldown: ${formatCooldown(cooldownLeft)}`

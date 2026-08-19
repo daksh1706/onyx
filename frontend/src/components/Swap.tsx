@@ -46,57 +46,52 @@ export const Swap: React.FC = () => {
     (fromToken === "MYC" && toToken === "ONYX") ||
     (fromToken === "ONYX" && toToken === "MYC");
 
-  // Get active reserves based on selected tokens
-  const getActiveReserves = (): { reserveIn: number; reserveOut: number } | null => {
-    if (fromToken === "MYC" && toToken === "INR") {
-      return reserves ? { reserveIn: parseFloat(reserves.reserveA), reserveOut: parseFloat(reserves.reserveB) } : null;
-    }
-    if (fromToken === "INR" && toToken === "MYC") {
-      return reserves ? { reserveIn: parseFloat(reserves.reserveB), reserveOut: parseFloat(reserves.reserveA) } : null;
-    }
-    if (fromToken === "ONYX" && toToken === "INR") {
-      return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveA), reserveOut: parseFloat(onyxReserves.reserveB) } : null;
-    }
-    if (fromToken === "INR" && toToken === "ONYX") {
-      return onyxReserves ? { reserveIn: parseFloat(onyxReserves.reserveB), reserveOut: parseFloat(onyxReserves.reserveA) } : null;
-    }
-    if (fromToken === "MYC" && toToken === "ONYX") {
-      return mycOnyxReserves ? { reserveIn: parseFloat(mycOnyxReserves.reserveA), reserveOut: parseFloat(mycOnyxReserves.reserveB) } : null;
-    }
-    if (fromToken === "ONYX" && toToken === "MYC") {
-      return mycOnyxReserves ? { reserveIn: parseFloat(mycOnyxReserves.reserveB), reserveOut: parseFloat(mycOnyxReserves.reserveA) } : null;
-    }
-    return null;
-  };
-
-  const activeReserves = getActiveReserves();
-
-  // Calculate price impact
-  const calculatePriceImpact = (): { percent: number; level: "low" | "medium" | "high" } => {
-    if (!activeReserves || !amountIn || !amountOut || parseFloat(amountIn) <= 0 || parseFloat(amountOut) <= 0) {
-      return { percent: 0, level: "low" };
+  // Calculate price impact accurately (single-hop and multi-hop)
+  const calculatePriceImpact = (): { percent: number; formatted: string; level: "low" | "medium" | "high" } => {
+    if (!amountIn || !amountOut || parseFloat(amountIn) <= 0 || parseFloat(amountOut) <= 0) {
+      return { percent: 0, formatted: "0.00%", level: "low" };
     }
 
     const inVal = parseFloat(amountIn);
     const outVal = parseFloat(amountOut);
-    const { reserveIn, reserveOut } = activeReserves;
 
-    if (reserveIn === 0 || reserveOut === 0) return { percent: 0, level: "low" };
+    let idealRate = 0;
+    if (fromToken === "MYC" && toToken === "INR" && reserves) {
+      idealRate = parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA);
+    } else if (fromToken === "INR" && toToken === "MYC" && reserves) {
+      idealRate = parseFloat(reserves.reserveA) / parseFloat(reserves.reserveB);
+    } else if (fromToken === "ONYX" && toToken === "INR" && onyxReserves) {
+      idealRate = parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA);
+    } else if (fromToken === "INR" && toToken === "ONYX" && onyxReserves) {
+      idealRate = parseFloat(onyxReserves.reserveA) / parseFloat(onyxReserves.reserveB);
+    } else if (fromToken === "ONYX" && toToken === "MYC" && onyxReserves && reserves) {
+      const rateOnyxInr = parseFloat(onyxReserves.reserveB) / parseFloat(onyxReserves.reserveA);
+      const rateInrMyc = parseFloat(reserves.reserveA) / parseFloat(reserves.reserveB);
+      idealRate = rateOnyxInr * rateInrMyc;
+    } else if (fromToken === "MYC" && toToken === "ONYX" && reserves && onyxReserves) {
+      const rateMycInr = parseFloat(reserves.reserveB) / parseFloat(reserves.reserveA);
+      const rateInrOnyx = parseFloat(onyxReserves.reserveA) / parseFloat(onyxReserves.reserveB);
+      idealRate = rateMycInr * rateInrOnyx;
+    }
 
-    // Ideal exchange rate (no fee, marginal price)
-    const idealRate = reserveOut / reserveIn;
-    // Actual exchange rate
+    if (idealRate <= 0) return { percent: 0, formatted: "0.00%", level: "low" };
+
     const actualRate = outVal / inVal;
-
-    // Price impact = (1 - actualRate / idealRate) * 100
-    const impact = (1 - (actualRate / idealRate)) * 100;
+    const impactRaw = Math.max(0, ((idealRate - actualRate) / idealRate) * 100);
 
     let level: "low" | "medium" | "high" = "low";
-    if (impact > 5) level = "high";
-    else if (impact > 2) level = "medium";
+    if (impactRaw > 5) level = "high";
+    else if (impactRaw > 2) level = "medium";
+
+    const formatted = impactRaw === 0
+      ? "0.00%"
+      : impactRaw < 0.01 
+        ? "< 0.01%" 
+        : `${impactRaw.toFixed(2)}%`;
 
     return {
-      percent: Math.max(0, parseFloat(impact.toFixed(2))),
+      percent: parseFloat(impactRaw.toFixed(2)),
+      formatted,
       level
     };
   };
@@ -593,7 +588,7 @@ export const Swap: React.FC = () => {
               color: priceImpact.level === "high" ? "var(--color-danger)" : priceImpact.level === "medium" ? "var(--color-warning)" : "var(--color-secondary)",
               fontWeight: 600
             }}>
-              {priceImpact.percent}%
+              {priceImpact.formatted}
             </span>
           </div>
         </div>
