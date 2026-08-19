@@ -22,10 +22,10 @@ const FAUCET_ABI = [
   "function withdraw(address token, uint256 amount) external",
 ];
 
-// In-memory cooldown tracking per address (1 hour minimum)
+// In-memory cooldown tracking per address (60s minimum)
 const claimCooldowns = new Map<string, number>();
 
-// POST /api/faucet/claim - Dispenses test crypto (MYC, INR, ONYX) + gas ETH to user
+// POST /api/faucet/claim - Dispenses 100 MYC, 100 INR, 100 ONYX test tokens only (no ETH)
 router.post("/claim", async (req: Request, res: Response) => {
   try {
     const { address } = req.body;
@@ -37,7 +37,7 @@ router.post("/claim", async (req: Request, res: Response) => {
     const recipient = getAddress(address.toLowerCase());
     const now = Date.now();
     const lastClaim = claimCooldowns.get(recipient) || 0;
-    const cooldownMs = 60 * 1000; // 60s cooldown buffer for rapid clicks
+    const cooldownMs = 60 * 1000; // 60s cooldown buffer
 
     if (now - lastClaim < cooldownMs) {
       const waitSec = Math.ceil((cooldownMs - (now - lastClaim)) / 1000);
@@ -47,32 +47,15 @@ router.post("/claim", async (req: Request, res: Response) => {
     const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
     const relayer = new ethers.Wallet(RELAYER_PRIVATE_KEY, provider);
 
-    const userEthBal = await provider.getBalance(recipient);
     let currentNonce = await provider.getTransactionCount(relayer.address, "latest");
 
-    // 1. If user has less than 0.002 ETH, send 0.003 ETH for gas
-    let gasTxHash = "";
-    if (userEthBal < parseEther("0.002")) {
-      try {
-        const gasTx = await relayer.sendTransaction({
-          to: recipient,
-          value: parseEther("0.003"),
-          nonce: currentNonce++,
-        });
-        gasTxHash = gasTx.hash;
-        await gasTx.wait(1);
-      } catch (gasErr) {
-        console.warn("Gas fund warning:", gasErr);
-      }
-    }
-
-    // 2. Contracts
+    // Contracts
     const mycContract = new Contract(CONTRACT_ADDRESSES.MyCoin, ERC20_ABI, relayer);
     const inrContract = new Contract(CONTRACT_ADDRESSES.MockINR, ERC20_ABI, relayer);
     const onyxContract = new Contract(CONTRACT_ADDRESSES.CustomToken, ERC20_ABI, relayer);
     const faucetContract = new Contract(CONTRACT_ADDRESSES.Faucet, FAUCET_ABI, relayer);
 
-    // 3. Ensure relayer has sufficient balances; replenish from faucet if needed
+    // Ensure relayer has sufficient balances; replenish from faucet if needed
     try {
       const mycBal = await mycContract.balanceOf(relayer.address);
       if (mycBal < parseEther("300")) {
@@ -83,12 +66,12 @@ router.post("/claim", async (req: Request, res: Response) => {
       console.warn("Faucet refill warning:", refillErr);
     }
 
-    // 4. Send 100 MYC, 100 INR, 100 ONYX
+    // Send 100 MYC, 100 INR, 100 ONYX
     const txMyc = await mycContract.transfer(recipient, parseEther("100"), { nonce: currentNonce++ });
     const txInr = await inrContract.transfer(recipient, parseUnits("100", 6), { nonce: currentNonce++ });
     const txOnyx = await onyxContract.transfer(recipient, parseEther("100"), { nonce: currentNonce++ });
 
-    const [recMyc, recInr, recOnyx] = await Promise.all([
+    const [, , recOnyx] = await Promise.all([
       txMyc.wait(1),
       txInr.wait(1),
       txOnyx.wait(1),
@@ -98,18 +81,17 @@ router.post("/claim", async (req: Request, res: Response) => {
     const blockNumber = recOnyx?.blockNumber || (await provider.getBlockNumber());
 
     return res.status(200).json({
-      message: "Test crypto and gas dispensed successfully!",
+      message: "100 MYC, 100 INR, and 100 ONYX test tokens dispensed successfully!",
       txHash: txOnyx.hash,
       mycTxHash: txMyc.hash,
       inrTxHash: txInr.hash,
-      gasTxHash,
       blockNumber,
       amount: "100+100+100",
     });
   } catch (error: any) {
     console.error("Faucet claim error:", error);
     return res.status(500).json({
-      error: error.reason || error.message || "Failed to dispense test crypto from faucet",
+      error: error.reason || error.message || "Failed to dispense test tokens from faucet",
     });
   }
 });

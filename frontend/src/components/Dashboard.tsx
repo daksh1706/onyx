@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "../context/WalletContext";
 import { Contract } from "ethers";
 import { CONTRACT_ADDRESSES, FAUCET_ABI } from "../constants/contracts";
-import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, Send, ArrowRightLeft, RefreshCw, Landmark } from "lucide-react";
+import { Clock, Activity, Zap, AlertTriangle, ShieldCheck as ShieldCheckIcon, Send, ArrowRightLeft, RefreshCw, Landmark, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 interface DashboardProps {
   setActiveTab?: (tab: "portfolio" | "send" | "swap" | "receive") => void;
@@ -25,6 +25,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   } = useWallet();
 
   const [faucetLoading, setFaucetLoading] = useState<boolean>(false);
+  const [faucetStage, setFaucetStage] = useState<string>("");
   const [faucetMessage, setFaucetMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [cooldownLeft, setCooldownLeft] = useState<number>(0);
   const [timeFilter, setTimeFilter] = useState<string>("1M");
@@ -109,28 +110,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const handleClaimFaucet = async () => {
     setFaucetLoading(true);
     setFaucetMessage(null);
+    setFaucetStage("Submitting request...");
     try {
+      const stageTimer1 = setTimeout(() => {
+        setFaucetStage("Verifying wallet & on-chain contracts...");
+      }, 700);
+
+      const stageTimer2 = setTimeout(() => {
+        setFaucetStage("Dispensing 100 MYC, 100 INR & 100 ONYX...");
+      }, 1600);
+
       const tx = await claimFaucet();
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
+
+      setFaucetStage("Confirming on Sepolia blockchain...");
       if (tx && typeof tx.wait === "function") {
-        setFaucetMessage({ text: "Submitted transaction...", error: false });
         await tx.wait();
       }
-      setFaucetMessage({ text: "Claimed 100 MYC, 100 INR, and 100 ONYX test tokens!", error: false });
+
+      setFaucetMessage({ text: "100 MYC, 100 INR, and 100 ONYX test tokens successfully claimed!", error: false });
       await refreshState();
       checkFaucetCooldown();
-      setTimeout(() => setFaucetMessage(null), 5000);
+      setTimeout(() => setFaucetMessage(null), 6000);
     } catch (err: any) {
       console.error("Faucet claim failed:", err);
       let errMsg = err.message || "Claim failed.";
       if (err.message && err.message.includes("Faucet: Cooldown active")) {
-        errMsg = "Cooldown active.";
+        errMsg = "Cooldown active. Please wait before claiming again.";
       } else if (err.message && err.message.includes("Insufficient")) {
-        errMsg = "Faucet empty.";
+        errMsg = "Faucet reserve low.";
       }
       setFaucetMessage({ text: errMsg, error: true });
-      setTimeout(() => setFaucetMessage(null), 5000);
+      setTimeout(() => setFaucetMessage(null), 6000);
     } finally {
       setFaucetLoading(false);
+      setFaucetStage("");
     }
   };
 
@@ -432,25 +447,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                   className="btn btn-primary"
                   onClick={handleClaimFaucet}
                   disabled={faucetLoading || cooldownLeft > 0}
-                  style={{ width: "100%", padding: "14px", fontWeight: 700 }}
+                  style={{ width: "100%", padding: "14px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
                 >
-                  {faucetLoading ? "Requesting Tokens..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
+                  {faucetLoading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>{faucetStage || "Processing..."}</span>
+                    </>
+                  ) : cooldownLeft > 0 ? (
+                    `Cooldown: ${formatCooldown(cooldownLeft)}`
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      <span>Claim Test Tokens</span>
+                    </>
+                  )}
                 </button>
+
+                {faucetLoading && (
+                  <div style={{
+                    marginTop: "14px",
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    background: "rgba(59, 130, 246, 0.08)",
+                    border: "1px solid rgba(59, 130, 246, 0.25)",
+                    color: "#60a5fa",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}>
+                    <Loader2 size={15} className="spin" style={{ flexShrink: 0 }} />
+                    <span>{faucetStage}</span>
+                  </div>
+                )}
 
                 {faucetMessage && (
                   <div style={{
-                    marginTop: "16px",
-                    padding: "12px",
-                    borderRadius: "8px",
+                    marginTop: "14px",
+                    padding: "12px 14px",
+                    borderRadius: "10px",
                     fontSize: "12px",
-                    background: faucetMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
-                    border: faucetMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
-                    color: faucetMessage.error ? "var(--color-danger)" : "var(--color-info)",
+                    fontWeight: 600,
+                    background: faucetMessage.error ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.14)",
+                    border: faucetMessage.error ? "1px solid rgba(239, 68, 68, 0.35)" : "1px solid rgba(34, 197, 94, 0.4)",
+                    color: faucetMessage.error ? "#f87171" : "#22c55e",
+                    boxShadow: faucetMessage.error ? "0 0 16px rgba(239, 68, 68, 0.1)" : "0 0 16px rgba(34, 197, 94, 0.15)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "6px"
+                    gap: "8px"
                   }}>
-                    <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                    {faucetMessage.error ? (
+                      <AlertTriangle size={15} style={{ flexShrink: 0, color: "#f87171" }} />
+                    ) : (
+                      <CheckCircle2 size={15} style={{ flexShrink: 0, color: "#22c55e" }} />
+                    )}
                     <span>{faucetMessage.text}</span>
                   </div>
                 )}
@@ -834,25 +886,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 className="btn btn-primary"
                 onClick={handleClaimFaucet}
                 disabled={faucetLoading || cooldownLeft > 0}
-                style={{ width: "100%", padding: "10px", fontSize: "12px", fontWeight: 700 }}
+                style={{ width: "100%", padding: "10px", fontSize: "12px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
               >
-                {faucetLoading ? "Requesting..." : cooldownLeft > 0 ? `Cooldown: ${formatCooldown(cooldownLeft)}` : "Claim Test Tokens"}
+                {faucetLoading ? (
+                  <>
+                    <Loader2 size={14} className="spin" />
+                    <span>{faucetStage || "Requesting..."}</span>
+                  </>
+                ) : cooldownLeft > 0 ? (
+                  `Cooldown: ${formatCooldown(cooldownLeft)}`
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Claim Test Tokens</span>
+                  </>
+                )}
               </button>
+
+              {faucetLoading && (
+                <div style={{
+                  marginTop: "8px",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px solid rgba(59, 130, 246, 0.25)",
+                  color: "#60a5fa",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  <Loader2 size={13} className="spin" style={{ flexShrink: 0 }} />
+                  <span>{faucetStage}</span>
+                </div>
+              )}
 
               {faucetMessage && (
                 <div style={{
                   marginTop: "8px",
-                  padding: "8px",
-                  borderRadius: "6px",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
                   fontSize: "11px",
-                  background: faucetMessage.error ? "rgba(161, 61, 52, 0.08)" : "rgba(40, 104, 168, 0.08)",
-                  border: faucetMessage.error ? "1px solid rgba(161, 61, 52, 0.2)" : "1px solid rgba(40, 104, 168, 0.2)",
-                  color: faucetMessage.error ? "var(--color-danger)" : "var(--color-info)",
+                  fontWeight: 600,
+                  background: faucetMessage.error ? "rgba(239, 68, 68, 0.12)" : "rgba(34, 197, 94, 0.14)",
+                  border: faucetMessage.error ? "1px solid rgba(239, 68, 68, 0.35)" : "1px solid rgba(34, 197, 94, 0.4)",
+                  color: faucetMessage.error ? "#f87171" : "#22c55e",
+                  boxShadow: faucetMessage.error ? "0 0 12px rgba(239, 68, 68, 0.1)" : "0 0 12px rgba(34, 197, 94, 0.15)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "4px"
+                  gap: "6px"
                 }}>
-                  <AlertTriangle size={12} style={{ flexShrink: 0 }} />
+                  {faucetMessage.error ? (
+                    <AlertTriangle size={13} style={{ flexShrink: 0, color: "#f87171" }} />
+                  ) : (
+                    <CheckCircle2 size={13} style={{ flexShrink: 0, color: "#22c55e" }} />
+                  )}
                   <span>{faucetMessage.text}</span>
                 </div>
               )}
