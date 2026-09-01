@@ -113,38 +113,6 @@ $$\Delta y = \frac{\Delta x \cdot 0.997 \cdot y}{x + \Delta x \cdot 0.997}$$
 
 ---
 
-## 📁 Repository Structure
-
-```text
-onyx/
-├── backend/                  # Node.js + Express + TypeScript API
-│   ├── src/
-│   │   ├── middleware/       # JWT authentication & request validation
-│   │   ├── models/           # Mongoose schemas (User, Transaction, Bank)
-│   │   ├── routes/           # Auth, Bank, Faucet, and Tx routes
-│   │   └── index.ts          # Server entrypoint & DB connection
-│   └── package.json
-├── frontend/                 # React 18 + Vite + Tailwind + Capacitor App
-│   ├── android/              # Native Android project configuration
-│   ├── ios/                  # Native iOS project configuration
-│   ├── src/
-│   │   ├── components/       # UI components (Swap, Faucet, SendReceive, TxHistory)
-│   │   ├── context/          # WalletContext & global state management
-│   │   ├── utils/            # WebCrypto encryption, contracts & RPC helpers
-│   │   └── App.tsx           # Navigation & core layout
-│   ├── capacitor.config.ts   # Mobile runtime configuration
-│   └── package.json
-├── hardhat/                  # Solidity smart contracts & tests
-│   ├── contracts/            # ERC-20 tokens, Faucet, and SimpleSwap AMM
-│   ├── scripts/              # Automated deployment & Etherscan verification
-│   ├── test/                 # Chai & Hardhat unit test suites
-│   └── hardhat.config.ts
-├── codemagic.yaml            # iOS & Android mobile CI/CD pipelines
-└── render.yaml               # Backend Render cloud hosting deployment spec
-```
-
----
-
 ## ⚙️ Environment Variables
 
 ### 1. `backend/.env`
@@ -229,28 +197,179 @@ npm run build
 
 ---
 
-## 📱 Mobile App Development (iOS & Android)
+## 📱 Mobile Application Setup (iOS & Android)
 
-The Onyx mobile client is powered by Capacitor:
+The Onyx mobile applications are built using **Capacitor 6**, which packages the React application into native container projects for iOS (Swift/Xcode) and Android (Kotlin/Gradle).
+
+### Prerequisites for Mobile Development
+
+| Platform | Requirements |
+| :--- | :--- |
+| **Common** | Node.js v18+, npm, and global Capacitor CLI (`npm install -g @capacitor/cli`) |
+| **iOS** | macOS computer, **Xcode 15+**, Command Line Tools (`xcode-select --install`), CocoaPods (`sudo gem install cocoapods`) |
+| **Android** | Windows / macOS / Linux, **Android Studio (Ladybug or later)**, **JDK 17**, Android SDK (API Level 33+) |
+
+---
+
+### Step 1: Build Web Assets & Sync Native Projects
+
+Before launching or building iOS/Android apps, always compile the latest web bundle and sync Capacitor:
 
 ```bash
 cd frontend
 
-# Build web assets and sync to native projects
+# 1. Install frontend dependencies
+npm install
+
+# 2. Build the production React bundle into /dist
 npm run build
+
+# 3. Sync web assets and Capacitor plugins to both native projects
 npx cap sync
-
-# Open in Xcode (macOS only)
-npx cap open ios
-
-# Open in Android Studio
-npx cap open android
 ```
 
-### Automated Mobile CI/CD (Codemagic)
-The repository includes `codemagic.yaml` supporting:
-- **`capacitor-ios-workflow`**: Compiles the web assets, syncs Capacitor iOS, installs pods, and builds a simulator `.zip` artifact on an Apple Silicon M2 instance.
-- **`capacitor-android-workflow`**: Compiles web assets, syncs Capacitor Android, and builds a debug APK via `./gradlew assembleDebug`.
+> [!TIP]
+> Whenever you modify React code in `frontend/src`, run `npm run build && npx cap sync` to propagate the changes into native iOS and Android projects.
+
+---
+
+### 🍏 Step 2: iOS Setup & Execution
+
+#### Option A: Running with Xcode UI (Recommended for Testing & Debugging)
+
+1. Open the native iOS workspace in Xcode:
+   ```bash
+   cd frontend
+   npx cap open ios
+   ```
+   *(Alternatively, open `frontend/ios/App/App.xcworkspace` directly in Xcode)*.
+
+2. **Configure Code Signing**:
+   - In Xcode's left sidebar, select the root **App** project.
+   - Go to the **Signing & Capabilities** tab.
+   - Under **Signing**, check **Automatically manage signing** and select your **Apple Developer Team** (or Personal Team).
+   - Verify that the Bundle Identifier is set to `com.onyx.wallet`.
+
+3. **Run in iOS Simulator**:
+   - In the top toolbar device selector, choose any simulator (e.g., **iPhone 16 Pro**).
+   - Press **`Cmd + R`** or click the **▶️ Play** button.
+
+4. **Run on Physical iPhone / iPad**:
+   - Connect your iOS device via USB and unlock it.
+   - Select your physical device from the device dropdown.
+   - Press **`Cmd + R`**.
+   - *(First-time setup)*: On your iPhone, navigate to **Settings > General > VPN & Device Management**, tap your developer certificate, and tap **Trust**.
+
+#### Option B: Building via Command Line (Simulator)
+
+To compile a debug simulator build directly from terminal:
+```bash
+cd frontend/ios/App
+xcodebuild build \
+  -workspace "App.xcodeproj/project.xcworkspace" \
+  -scheme "App" \
+  -sdk iphonesimulator \
+  -configuration Debug \
+  -derivedDataPath build \
+  CODE_SIGN_IDENTITY="" \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+#### Native iOS Permissions Configured (`Info.plist`)
+- `NSFaceIDUsageDescription`: Enables native Face ID biometric authentication to unlock wallets and sign transactions.
+- `NSCameraUsageDescription`: Enables camera access for QR-code address scanning.
+- `CFBundleURLSchemes`: Configured custom deep-link scheme `onyxapp://`.
+
+---
+
+### 🤖 Step 3: Android Setup & Execution
+
+#### Option A: Running with Android Studio UI
+
+1. Open the Android project in Android Studio:
+   ```bash
+   cd frontend
+   npx cap open android
+   ```
+   *(Alternatively, launch Android Studio and choose "Open" -> select the `frontend/android` folder)*.
+
+2. **Gradle Sync & SDK Verification**:
+   - Wait for Android Studio to index the project and complete the Gradle sync.
+   - Ensure the Android SDK Build-Tools and API 33+ are installed via **Tools > SDK Manager**.
+   - Ensure Java 17 is set under **Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK**.
+
+3. **Run on Android Emulator**:
+   - Open **Device Manager** in Android Studio and create/start an **Android Virtual Device (AVD)** (e.g. Pixel 8 with API 34).
+   - Click the green **▶️ Run 'app'** button (`Shift + F10`).
+
+4. **Run on Physical Android Device**:
+   - Enable **Developer Options** and turn on **USB Debugging** on your phone.
+   - Connect your phone via USB and allow USB debugging when prompted.
+   - Select your physical device in the device dropdown and click **▶️ Run**.
+
+#### Option B: Building Debug APK via Command Line
+
+You can build the Android APK directly using Gradle without opening Android Studio:
+
+```bash
+cd frontend/android
+
+# Ensure gradlew has execution permissions
+chmod +x gradlew
+
+# Build Debug APK
+./gradlew assembleDebug
+```
+
+- **Output APK Location**:
+  `frontend/android/app/build/outputs/apk/debug/app-debug.apk`
+
+- **Install APK to Connected Device/Emulator**:
+  ```bash
+  cd frontend/android
+  ./gradlew installDebug
+  ```
+
+---
+
+### ⚡ Step 4: Live Reload for Mobile Development
+
+To test React UI updates instantly on simulators or physical devices without re-running `cap sync`:
+
+1. Find your computer's local network IP address (e.g. `192.168.1.50`).
+2. Temporarily update `frontend/capacitor.config.ts`:
+   ```typescript
+   import type { CapacitorConfig } from '@capacitor/cli';
+
+   const config: CapacitorConfig = {
+     appId: 'com.onyx.wallet',
+     appName: 'Onyx Wallet',
+     webDir: 'dist',
+     server: {
+       url: 'http://192.168.1.50:5173', // Your computer's local IP and Vite port
+       cleartext: true
+     }
+   };
+
+   export default config;
+   ```
+3. Start the Vite dev server with network exposure: `npm run dev -- --host`
+4. Sync once: `npx cap sync`
+5. Run the app in Xcode or Android Studio. Any code edits in Vite will now hot-reload on the mobile device.
+
+---
+
+### 🚀 Automated Mobile CI/CD (Codemagic)
+
+The repository includes a ready-to-use [`codemagic.yaml`](codemagic.yaml) pipeline for cloud builds:
+
+- **`capacitor-ios-workflow`**: 
+  - Runs on macOS M2 VMs.
+  - Automatically installs dependencies, builds React assets, runs `cap sync ios`, and compiles a `.zip` containing `App.app` for the iOS Simulator.
+- **`capacitor-android-workflow`**:
+  - Runs on Linux VMs with Java 17.
+  - Compiles web assets, runs `cap sync android`, and runs `./gradlew assembleDebug` to produce standalone `app-debug.apk` build artifacts.
 
 ---
 
