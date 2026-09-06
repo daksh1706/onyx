@@ -13,8 +13,8 @@ import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 
-// Backend API base URL — uses local network IP so physical iOS devices can connect
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+// Backend API base URL — fallback to Render backend if env variable is not set
+const API_URL = import.meta.env.VITE_API_URL || "https://onyx-3yxt.onrender.com";
 
 // Secure Storage Native-to-Web Fallback Wrappers
 const getSecureItem = async (key: string): Promise<string | null> => {
