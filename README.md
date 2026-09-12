@@ -395,3 +395,4 @@ Set the output directory to `dist` and provide the relevant `VITE_*` environment
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
